@@ -11,6 +11,5 @@ import java.util.List;
 @Repository
 public interface PageRepository extends CrudRepository<Page, Integer> {
 
-    @Query(value = "SELECT * FROM page WHERE site_id = :siteId", nativeQuery = true)
-    List<Page>findBySiteId(Integer siteId);
+
 }

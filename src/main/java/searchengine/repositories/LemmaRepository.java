@@ -7,14 +7,21 @@ import searchengine.model.Lemma;
 
 import java.util.List;
 
-
 @Repository
 public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
 
+
     List<Lemma> findByLemma(String lemma);
 
-    Lemma findBySiteIdAndLemma(int siteId, String lemma);
+    @Query(value = "SELECT id FROM lemma WHERE site_id = :siteId AND lemma = :lemma", nativeQuery = true)
+    int findIdBySiteIdAndLemma(int siteId, String lemma);
 
     @Query(value = "SELECT MAX(frequency) FROM lemma WHERE site_id = :siteId", nativeQuery = true)
     int getMaxFrequencyBySiteId(int siteId);
+
+    Lemma findBySiteIdAndLemma(int siteId, String lemma);
+
+
+
+
 }

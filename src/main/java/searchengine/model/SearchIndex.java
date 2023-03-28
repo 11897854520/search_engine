@@ -2,6 +2,12 @@ package searchengine.model;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Formula;
+import org.hibernate.annotations.SQLInsert;
+import org.springframework.data.jpa.repository.Query;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.SearchIndexRepository;
+
 import javax.persistence.*;
 
 @Entity
@@ -11,26 +17,29 @@ import javax.persistence.*;
 @Table(indexes = {@Index(columnList = "lemma_id"), @Index(columnList = "page_id")})
 public class SearchIndex {
 
-    public SearchIndex(Page page, Lemma lemma, float lemmaRank) {
+    public SearchIndex(Page page, int lemmaId, float lemmaRank) {
 
         this.page = page;
-        this.lemma = lemma;
         this.lemmaRank = lemmaRank;
+        this.lemmaId = lemmaId;
 
     }
 
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seqGen")
+    @SequenceGenerator(name = "seqGen", sequenceName = "seq", initialValue = 1)
     private int id;
 
     @ManyToOne
     @JoinColumn(name = "page_id")
     private Page page;
 
-    @ManyToOne
-    @JoinColumn(name = "lemma_id")
-    private Lemma lemma;
-
     @Column(nullable = false)
     private float lemmaRank;
+
+
+    @Column(name = "lemma_id")
+    private int lemmaId;
+
 }

@@ -3,7 +3,6 @@ package searchengine.controllers;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.auxiliary.ContentHandling;
 import searchengine.dto.Response;
 import searchengine.dto.StatisticsResponse;
 import searchengine.services.*;
@@ -16,15 +15,14 @@ public class ApiController {
 
     private final StatisticsService statisticsService;
     private final IndexSitesService indexSitesService;
-    private final ContentHandling contentHandling;
+
     private final SearchLemmasService searchLemmasService;
 
     public ApiController(StatisticsService statisticsService, IndexSitesService indexSitesService
-            , ContentHandling contentHandling, SearchLemmasService searchLemmasService) {
+            , SearchLemmasService searchLemmasService) {
 
         this.statisticsService = statisticsService;
         this.indexSitesService = indexSitesService;
-        this.contentHandling = contentHandling;
         this.searchLemmasService = searchLemmasService;
 
     }

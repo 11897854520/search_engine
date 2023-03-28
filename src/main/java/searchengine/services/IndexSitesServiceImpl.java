@@ -5,15 +5,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import searchengine.auxiliary.ContentHandling;
-import searchengine.auxiliary.Task;
+import searchengine.model.SiteStatus;
+import searchengine.parser.Task;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.Response;
-import searchengine.repositories.LemmaRepository;
-import searchengine.repositories.insertRepository;
-import searchengine.repositories.PageRepository;
-import searchengine.repositories.SiteRepository;
+import searchengine.repositories.*;
 
 // Класс для индексации сайтов.
 @Service
@@ -21,7 +18,6 @@ import searchengine.repositories.SiteRepository;
 public class IndexSitesServiceImpl implements IndexSitesService {
 
     private final SitesList sites;
-    private final ContentHandling contentHandling;
     @Autowired
     private SiteRepository siteRepository;
     @Autowired
@@ -29,12 +25,10 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     @Autowired
     private LemmaRepository lemmaRepository;
     @Autowired
-    private insertRepository insertRepository;
-
+    private SearchIndexRepository searchIndexRepository;
     private static int count = 0;
     private static volatile boolean interruptIt;
     private static boolean sitesContainsUrl;
-
     private Thread thread;
 
     // Метод для индексации или переиндексации всех сайтов из списка файла "Application.yaml"
@@ -43,9 +37,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         if (interruptIt) {
 
             interruptIt = false;
-            insertRepository.insert("UPDATE site SET status = 'INDEXING', last_error = null" +
-                    " WHERE status = 'FAILED' AND " +
-                    "last_error = 'Произошла ошибка. Причина: индексация остановлена пользователем'");
+            changeSite(SiteStatus.FAILED, SiteStatus.INDEXING, null);
 
         } else {
 
@@ -63,7 +55,8 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
             sites.getSites().forEach(site -> {
 
-                thread = new Thread(new Task(site, siteRepository, pageRepository, contentHandling));
+                thread = new Thread(new Task(site, siteRepository, pageRepository
+                        , lemmaRepository, searchIndexRepository));
                 thread.start();
 
             });
@@ -87,14 +80,14 @@ public class IndexSitesServiceImpl implements IndexSitesService {
                 if (interruptIt) {
 
                     interruptIt = false;
-                    insertRepository.insert("UPDATE site SET status = 'INDEXING', last_error = null" +
-                            " WHERE status = 'FAILED' AND " +
-                            "last_error = 'Произошла ошибка. Причина: индексация остановлена пользователем'");
+                    changeSite(SiteStatus.FAILED, SiteStatus.INDEXING, null);
+
 
                 } else {
 
                     interruptIt = false;
-                    thread = new Thread(new Task(site, siteRepository, pageRepository, contentHandling));
+                    thread = new Thread(new Task(site, siteRepository, pageRepository
+                            , lemmaRepository, searchIndexRepository));
                     thread.start();
 
                 }
@@ -121,13 +114,12 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     // Метод для остановки индексации.
     private void stopIndexing() {
 
+        String error = "Произошла ошибкаю. Причина: индексация остановлена пользователем";
 
         if (thread != null) {
 
             interruptIt = true;
-            insertRepository.insert("UPDATE site SET status = 'FAILED'," +
-                    " last_error = 'Произошла ошибка." +
-                    " Причина: индексация остановлена пользователем' WHERE status = 'INDEXING'");
+           changeSite(SiteStatus.INDEXING,SiteStatus.FAILED, error);
 
         }
 
@@ -232,6 +224,18 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
         return IndexSitesServiceImpl.isSitesContainsUrl() ? ResponseEntity.ok(new Response(true, null))
                 :  ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response(false, errorResponse));
+
+    }
+
+    private void changeSite(SiteStatus neededStatus, SiteStatus requiredStatus, String lastError) {
+
+        siteRepository.findAllByStatus(neededStatus).forEach(site1 -> {
+
+            site1.setStatus(requiredStatus);
+            site1.setLastError(lastError);
+            siteRepository.save(site1);
+
+        });
 
     }
 }

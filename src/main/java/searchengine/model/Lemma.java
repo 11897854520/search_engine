@@ -1,20 +1,28 @@
 package searchengine.model;
 import lombok.*;
+import org.hibernate.annotations.SQLInsert;
+
 import javax.persistence.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"site_id", "lemma"}),
-        indexes = @Index(columnList = "lemma"))
+@Table(indexes = {@Index(columnList = "site_id, lemma")})
+public class Lemma  {
 
-public class Lemma {
+    public Lemma (Site site, String lemma, int frequency) {
 
+        this.site = site;
+        this.lemma = lemma;
+        this.frequency = frequency;
+
+    }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seqGen")
+    @SequenceGenerator(name = "seqGen", sequenceName = "seq", initialValue = 1)
+    private  int id;
 
     @ManyToOne
     @JoinColumn(name = "site_id", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
@@ -25,7 +33,6 @@ public class Lemma {
 
     @Column(nullable = false)
     private int frequency;
-
 
 
 }

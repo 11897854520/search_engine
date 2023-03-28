@@ -1,4 +1,5 @@
 package searchengine.model;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,7 +25,8 @@ public class Site {
 
 
    @Id
-   @GeneratedValue(strategy = GenerationType.IDENTITY)
+   @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seqGen")
+   @SequenceGenerator(name = "seqGen", sequenceName = "seq", initialValue = 1)
    private Integer id;
 
    @Enumerated(EnumType.STRING)

@@ -1,15 +1,15 @@
-package searchengine.auxiliary;
-
+package searchengine.parser;
 import lombok.RequiredArgsConstructor;
 import searchengine.config.SitesList;
 import searchengine.model.Page;
 import searchengine.model.Site;
+import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
+import searchengine.repositories.SearchIndexRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.model.SiteStatus;
 import searchengine.services.IndexSitesService;
 import searchengine.services.IndexSitesServiceImpl;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -17,13 +17,14 @@ import java.util.concurrent.ForkJoinPool;
 
 @RequiredArgsConstructor
 public class Task implements Runnable {
-
     private final searchengine.config.Site site;
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
-    private final ContentHandling contentHandling;
+    private final LemmaRepository lemmaRepository;
+    private final SearchIndexRepository searchIndexRepository;
+    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
 
-    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList(), new ContentHandlingImpl());
+
 
 
     @Override
@@ -67,7 +68,7 @@ public class Task implements Runnable {
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable);
         List<Page> pageList = new ForkJoinPool().invoke(siteParser);
         pageRepository.saveAll(pageList);
-        contentHandling.writeLemmasInSql(pageList, siteTable);
+        ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
 
         try {
 
@@ -112,7 +113,7 @@ public class Task implements Runnable {
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable);
         List<Page> pageList = new ForkJoinPool().invoke(siteParser);
         pageRepository.saveAll(pageList);
-        contentHandling.writeLemmasInSql(pageList, siteTable);
+        ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
 
         try {
 

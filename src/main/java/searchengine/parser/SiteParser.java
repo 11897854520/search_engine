@@ -1,4 +1,4 @@
-package searchengine.auxiliary;
+package searchengine.parser;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -21,7 +21,7 @@ public class SiteParser extends RecursiveTask<List<Page>> {
     protected static final Set<String> COPY_LINKS = new HashSet<>();
     private List<Page> pageList = new ArrayList<>();
     private final Site site;
-    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList(), new ContentHandlingImpl());
+    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
 
     @Override
     protected List<Page> compute() {

@@ -1,12 +1,12 @@
-package searchengine.auxiliary;
+package searchengine.parser;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import searchengine.model.Lemma;
 import searchengine.model.Page;
+import searchengine.model.SearchIndex;
 import searchengine.model.Site;
 import searchengine.repositories.*;
 
@@ -14,24 +14,13 @@ import java.io.IOException;
 import java.util.*;
 
 // Класс для обработки содержимого страниц.
-@Service
-@RequiredArgsConstructor
-public class ContentHandlingImpl implements ContentHandling {
 
-    @Autowired
-    private SiteRepository siteRepository;
-    @Autowired
-    private PageRepository pageRepository;
-    @Autowired
-    private LemmaRepository lemmaRepository;
-    @Autowired
-    private SearchIndexRepository searchIndexRepository;
-    @Autowired
-    private insertRepository insertRepository;
+@RequiredArgsConstructor
+public class ContentHandling {
 
 
     // Метод для очищения содержимого страниц от html-тегов.
-    private String cleanedPageContents(String html) {
+    private static String cleanedPageContents(String html) {
 
         return Jsoup.parse(html).text();
 
@@ -39,7 +28,7 @@ public class ContentHandlingImpl implements ContentHandling {
 
     // Метод для перевода слов содержимого сайта в устойчивую форму (лемму) и подсчета количества лемм
     // на каждой странице.
-    public Map<String, Integer> amountOfLemmas(String text) throws IOException {
+    public static Map<String, Integer> amountOfLemmas(String text) throws IOException {
 
         Map<String, Integer> lemmas = new HashMap<>();
         String[] words = text.toLowerCase(Locale.ROOT)
@@ -80,7 +69,7 @@ public class ContentHandlingImpl implements ContentHandling {
     }
 
     // Метод для сравнения лемм разных слов.
-    public boolean lemmasIsEquals(String one, String two) throws IOException {
+    public static boolean lemmasIsEquals(String one, String two) throws IOException {
 
         String oneChanged = one.toLowerCase(Locale.ROOT).replaceAll("([^а-я\\s])", "");
         String twoChanged = two.toLowerCase(Locale.ROOT).replaceAll("([^а-я\\s])", "");
@@ -107,7 +96,7 @@ public class ContentHandlingImpl implements ContentHandling {
     }
 
     // Метод для определения соответствия слова указанному типу.
-    private boolean unneededTypeOfWord(List<String> typeOfWord) {
+    private static boolean unneededTypeOfWord(List<String> typeOfWord) {
 
         String[] types = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
@@ -122,56 +111,92 @@ public class ContentHandlingImpl implements ContentHandling {
     }
 
     // Метод для записи данных в таблицы "lemma" и "search_Index"
-    @Override
-    public void writeLemmasInSql(List<Page> pageList, Site site) {
 
-        StringBuilder builder = new StringBuilder();
-        StringBuilder anotherBuilder = new StringBuilder();
+    public static void writeLemmaAndIndexIntoSql(LemmaRepository lemmaRepository
+            , SearchIndexRepository searchIndexRepository, List<Page> pageList, Site site) {
 
         if (!pageList.isEmpty()) {
 
-            pageList.forEach(page -> {
-
-                String html = page.getContent();
-                String cleanedContent = cleanedPageContents(html);
-
-                try {
-
-                    amountOfLemmas(cleanedContent).forEach((s, integer) -> {
-
-                        anotherBuilder.append(anotherBuilder.length() == 0 ? "" : ", ").append("(" + "'"
-                                + page.getId() + "'" + ", "
-                                + "(SELECT id FROM lemma WHERE site_id =" + "'" + site.getId() + "'"
-                                + " AND `lemma` =" + "'" + s + "')" + ", " + "'" + integer + "'" + ")");
-
-                        builder.append(builder.length() == 0 ? "" : ", ").append("(" + "'"
-                                + site.getId() + "'" + ", " + "'" + s + "'" + ", " + "'" + 1 + "'" + ")");
-
-
-                    });
-
-                } catch (Exception e) {
-
-                    System.out.println(e.getMessage());
-
-                }
-
-
-            });
-
-
-            String lemmaInsert = "INSERT INTO lemma(site_id, lemma, frequency) VALUES"
-                    + builder +
-                    "ON DUPLICATE KEY UPDATE frequency = frequency + 1";
-            String searchIndexInsert = "INSERT INTO search_index(page_id, lemma_id, lemma_rank) VALUES"
-                    + anotherBuilder;
-
-
-            insertRepository.insert(lemmaInsert);
-            insertRepository.insert(searchIndexInsert);
+           writeLemmaIntoSql(lemmaRepository, pageList, site);
+           writeIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, site);
 
         }
 
+    }
+
+    private static void writeLemmaIntoSql(LemmaRepository lemmaRepository,
+                                          List<Page> pageList, Site site) {
+
+        Map<String, Lemma> lemmaMap = new TreeMap<>();
+
+        pageList.forEach(page -> {
+
+            String html = page.getContent();
+            String cleanedContent = cleanedPageContents(html);
+
+            try {
+
+                amountOfLemmas(cleanedContent).forEach((s, integer) -> {
+
+                    Lemma lemma = new Lemma(site, s, 1);
+                    String key = site.getName() + s;
+
+                    if (!lemmaMap.containsKey(key)) {
+
+                        lemmaMap.put(key, lemma);
+
+                    } else {
+
+                        lemmaMap.put(key, new Lemma(site, s
+                                , lemmaMap.get(key).getFrequency() + 1));
+
+                    }
+
+                });
+
+
+            } catch (Exception e) {
+
+                System.out.println(e.getMessage());
+
+            }
+
+        });
+
+        lemmaRepository.saveAll(lemmaMap.values());
+
+    }
+
+    private static void writeIndexIntoSql(LemmaRepository lemmaRepository
+            , SearchIndexRepository searchIndexRepository, List<Page> pageList, Site site) {
+
+        List<SearchIndex>searchIndexList = new ArrayList<>();
+
+        pageList.forEach(page -> {
+
+            String html = page.getContent();
+            String cleanedContent = cleanedPageContents(html);
+
+            try {
+
+                amountOfLemmas(cleanedContent).forEach((s, integer) -> {
+
+                    SearchIndex searchIndex = new SearchIndex(page
+                            , lemmaRepository.findIdBySiteIdAndLemma(site.getId(), s), integer);
+                       searchIndexList.add(searchIndex);
+
+                });
+
+
+            } catch (Exception e) {
+
+                System.out.println(e.getMessage());
+
+            }
+
+        });
+
+        searchIndexRepository.saveAll(searchIndexList);
 
     }
 

@@ -7,13 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import searchengine.auxiliary.ContentHandling;
 import searchengine.dto.InformationAboutLemmas;
 import searchengine.dto.InformationAboutSearching;
 import searchengine.dto.Response;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.SearchIndex;
+import searchengine.parser.ContentHandling;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.SearchIndexRepository;
 import searchengine.repositories.SiteRepository;
@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SearchLemmasServiceImpl implements SearchLemmasService {
 
-    private final ContentHandling contentHandling;
     @Autowired
     private SearchIndexRepository searchIndexRepository;
     @Autowired
@@ -47,7 +46,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         List<Lemma> lemmas = new ArrayList<>();
         query = "";
 
-        contentHandling.amountOfLemmas(text).keySet().forEach(s -> {
+        ContentHandling.amountOfLemmas(text).keySet().forEach(s -> {
 
             if (lemmaRepository.findByLemma(s) != null) {
 
@@ -69,7 +68,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         List<Lemma> lemmas = new ArrayList<>();
         query = "";
 
-        contentHandling.amountOfLemmas(text).keySet().forEach(s -> {
+        ContentHandling.amountOfLemmas(text).keySet().forEach(s -> {
 
             if (lemmaRepository.findBySiteIdAndLemma(siteRepository.findByUrl(url).getId()
                     , s) != null) {
@@ -261,9 +260,10 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
             , String[] arrayOfLemmasFromHtml, String queryLemma, String[] arrayOfWordsFromQuery, String s
             , String word, AtomicReference<String> result, int count) throws IOException {
 
+
         if (!passedLemmas.contains(queryLemma)) {
 
-            if (contentHandling.lemmasIsEquals(s, word)
+            if (ContentHandling.lemmasIsEquals(s, word)
                     && passedLemmas.size() <= arrayOfWordsFromQuery.length) {
 
                 boldWords.add(word.toLowerCase(Locale.ROOT).replaceAll("[^а-я]", ""));

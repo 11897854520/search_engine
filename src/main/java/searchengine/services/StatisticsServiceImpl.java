@@ -17,21 +17,17 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
-
     private final SitesList sites;
     @Autowired
     private final SiteRepository siteRepository;
 
     @Override
     public StatisticsResponse getStatistics() {
-
         TotalStatistics total = new TotalStatistics();
         total.setSites(sites.getSites().size());
         total.setIndexing(true);
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
-
         siteRepository.findAll().forEach(site -> {
-
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
@@ -45,9 +41,7 @@ public class StatisticsServiceImpl implements StatisticsService {
             total.setPages(total.getPages() + pages);
             total.setLemmas(total.getLemmas() + lemmas);
             detailed.add(item);
-
         });
-
         StatisticsResponse response = new StatisticsResponse();
         StatisticsData data = new StatisticsData();
         data.setTotal(total);
@@ -55,6 +49,5 @@ public class StatisticsServiceImpl implements StatisticsService {
         response.setStatistics(data);
         response.setResult(true);
         return response;
-
     }
 }

@@ -7,11 +7,9 @@ import searchengine.model.SiteStatus;
 
 @Repository
 public interface SiteRepository extends CrudRepository<Site, Integer> {
-
     Site findByUrl(String url);
 
-    Iterable<Site> findAllByStatus(SiteStatus siteStatus);
-
+    Iterable<Site> findAllByStatusAndLastError(SiteStatus siteStatus, String lastError);
 }
 
 

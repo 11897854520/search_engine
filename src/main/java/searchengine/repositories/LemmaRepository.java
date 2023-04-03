@@ -9,8 +9,6 @@ import java.util.List;
 
 @Repository
 public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
-
-
     List<Lemma> findByLemma(String lemma);
 
     @Query(value = "SELECT id FROM lemma WHERE site_id = :siteId AND lemma = :lemma", nativeQuery = true)
@@ -20,8 +18,4 @@ public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
     int getMaxFrequencyBySiteId(int siteId);
 
     Lemma findBySiteIdAndLemma(int siteId, String lemma);
-
-
-
-
 }

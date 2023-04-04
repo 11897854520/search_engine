@@ -35,7 +35,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     private void index() {
         if (interruptIt) {
             interruptIt = false;
-            changeSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
+            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
         } else {
             interruptIt = false;
             deleteSiteFromDataBaseIfDoesNotExist();
@@ -70,7 +70,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     private void changeSiteInDataBaseOrStartIndexingOfSingleSite(Site site) {
         if (interruptIt) {
             interruptIt = false;
-            changeSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
+            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
         } else {
             interruptIt = false;
             thread = new Thread(new Task(site, siteRepository, pageRepository
@@ -92,7 +92,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
         if (thread != null) {
             interruptIt = true;
-            changeSite(SiteStatus.INDEXING, SiteStatus.FAILED, null, ERROR);
+            updateSite(SiteStatus.INDEXING, SiteStatus.FAILED, null, ERROR);
         }
     }
 
@@ -165,7 +165,8 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
     /*Метод для изменения статуса сайта и строки lastError при остановке индексации либо при запуске после
    после остановки.*/
-    private void changeSite(SiteStatus before, SiteStatus after, String lastErrorBefore, String lastErrorAfter) {
+    private void updateSite(SiteStatus before
+            , SiteStatus after, String lastErrorBefore, String lastErrorAfter) {
         siteRepository.findAllByStatusAndLastError(before, lastErrorBefore).forEach(site1 -> {
             site1.setStatus(after);
             site1.setLastError(lastErrorAfter);

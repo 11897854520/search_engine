@@ -33,14 +33,14 @@ public class Task implements Runnable {
             } else {
                 writeSitesAndPagesIntoSql();
             }
-        } catch (IOException e) {
-            throw new RuntimeException();
+        } catch (Exception e) {
+            System.out.println(e);;
         }
         IndexSitesServiceImpl.setCount(IndexSitesServiceImpl.getCount() + 1);
     }
 
     // Метод для записи данных в sql, если таблицы не заполнены.
-    private synchronized void writeSitesAndPagesIntoSql() throws IOException {
+    private synchronized void writeSitesAndPagesIntoSql()  {
         String error = null;
         Site siteTable;
         siteTable = new Site(SiteStatus.INDEXING
@@ -51,9 +51,9 @@ public class Task implements Runnable {
         indexSitesService.interruptThread();
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable);
         List<Page> pageList = new ForkJoinPool().invoke(siteParser);
-        pageRepository.saveAll(pageList);
-        ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
         try {
+            pageRepository.saveAll(pageList);
+            ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
             siteParser.document(site.getUrl()).connection().response().statusCode();
         } catch (Exception e) {
             error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();
@@ -72,7 +72,7 @@ public class Task implements Runnable {
     }
 
     // Метод для записи данных в sql, если таблицы уже заполнены.
-    private synchronized void rewriteSitesAndPagesIntoSql() throws IOException {
+    private synchronized void rewriteSitesAndPagesIntoSql()  {
         String error = null;
         Site siteTable;
         Site old = siteRepository.findByUrl(site.getUrl());
@@ -86,9 +86,9 @@ public class Task implements Runnable {
         SiteParser.COPY_LINKS.clear();
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable);
         List<Page> pageList = new ForkJoinPool().invoke(siteParser);
-        pageRepository.saveAll(pageList);
-        ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
         try {
+            pageRepository.saveAll(pageList);
+            ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
             siteParser.document(site.getUrl()).connection().response().statusCode();
         } catch (Exception e) {
             error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();

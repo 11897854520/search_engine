@@ -11,7 +11,6 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(indexes = @Index(columnList = "path"))
 public class Page {
     public Page(String path, int code, String content, Site site) {
         this.path = path;
@@ -27,7 +26,7 @@ public class Page {
     @ManyToOne
     @JoinColumn(name = "site_id", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private Site site;
-    @Column(nullable = false)
+    @Column(nullable = false,columnDefinition = "TEXT")
     private String path;
     @Column(nullable = false)
     private int code;

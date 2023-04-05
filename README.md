@@ -166,7 +166,7 @@ __forkJoin__.
 Метод __getListOfPages__ возвращает LinkedHashMap, где ключ это лемма, а значение - список страниц,
 на которых данная лемма встречается.
 
-Метод __recordInformationOfLemmas__ циклически обходит каждый список __page__ значений LinkedHashMap,
+Метод __recordInformationOfLemmasIntoMap__ циклически обходит каждый список __page__ значений LinkedHashMap,
 возвращаемый методом __getListOfPages__  и при помощи вложенного цикла, перебирающего keySet
 данного LinkedHashMap, сопоставляет каждую лемму и каждую страницу каждого списка страниц, начиная с самого короткого
 списка. При помощи метода __getRankByLemmaAndPage__ репозитория __SearchIndexRepository__, имеющего
@@ -179,10 +179,14 @@ __relativeRelevance__. После всего этого для каждой ст
 __site__, __siteName__, __url__, __title__, __snippet__, __relevance__. Параметр __snippet__ представляет
 из себя фрагмент текста страницы, в котором встречаются леммы. Строку сниппета метод получает при 
 помощи методов __getSnippet__ и __makeStringOfSnippet__. В параметр __relevance__вводится значение __relativeRelevance__. 
-Каждый объект класса  __InformationAboutLemmas__ отправляется в список __listOfInformation__.
+Каждый объект класса  __InformationAboutLemmas__ отправляется в map __mapOfInformation__, где ключом является
+строка __key__, представляющая из себя адрес страницы + строка title. Eсли __маpOfInformation__ уже содержит ключ,
+то добавляется объект __informationAboutLemmas__ куда в качестве атрибута __snippet__ добавляется
+значение __snippet__ из предыдущего значения этого ключа, а в качестве значения __relevance__ добавляется
+сумма старого значения __relevance__ и переменной __relativeRelevance__.
 
-Метод __searchResult__ вызывает метод __recordInformationOfLemmas__, циклически обходит список
-__listOfInformation__, создает список __data__, в который добавляет элементы списка __listOfInformation__
+Метод __searchResult__ вызывает метод __recordInformationOfLemmas__, циклически обходит мар
+__марOfInformation__, создает список __data__, в который добавляет значения  __марOfInformation__
 начиная с индекса равному параметру __offset__ и заканчивая индексом равному сумме параметров 
 __offset__ и __limit__. Затем метод возвращает объект класса __InformationAboutSearching__,
 c параметрами __result__, __count__, и __data__ (boolean, int и List<InformationAboutLemmas> соответственно),

@@ -34,8 +34,8 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     private LemmaRepository lemmaRepository;
     @Autowired
     private SiteRepository siteRepository;
-    private List<InformationAboutLemmas> listOfInformation
-            = new ArrayList<>();
+    private Map<String, InformationAboutLemmas> mapOfInformation
+            = new TreeMap();
     private String query = "";
 
     // Получаем список лемм, соответствующих запросу (если не указан сайт для поиска)
@@ -91,14 +91,15 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
 
     // Создаем список с объектами, в которых содержится информация о наличии лемм из запроса
     // на каждой странице
-    private void recordInformationOfLemmasIntoList(Map<Lemma, List<Page>> getListOfPages) {
-        listOfInformation.clear();
+    private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) {
+        mapOfInformation.clear();
         List<Float> listOfAbsoluteRelevance = new ArrayList<>();
         getListOfPages.values().stream().flatMap(Collection::parallelStream)
                 .forEach(page -> {
                     String title = Jsoup.parse(page.getContent()).title();
                     List<Float> listOfRelevance = new ArrayList<>();
                     Set<String> toRemoveEqualsLemmas = new HashSet<>();
+                    String key = page.getPath() + title;
                     enumerationOfLemmasFromQueryAndWritingRanksIntoLists(getListOfPages.keySet()
                             , toRemoveEqualsLemmas, page, listOfRelevance);
                     float absoluteRelevance = (float) listOfRelevance.stream()
@@ -106,17 +107,22 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                     listOfAbsoluteRelevance.add(absoluteRelevance);
                     float relativeRelevance = absoluteRelevance /
                             (listOfAbsoluteRelevance.stream().max(Float::compareTo).get());
-                    if (toRemoveEqualsLemmas.size() == listOfRelevance.size()) {
+                    if (toRemoveEqualsLemmas.size() == listOfRelevance.size()
+                            && !mapOfInformation.containsKey(key)) {
                         try {
-                            listOfInformation.add(new InformationAboutLemmas(page.getSite().getUrl()
+                            mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
                                     , page.getSite().getName(), page.getPath(), title
                                     , getSnippet(page.getContent(), query), relativeRelevance));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
+                    } else if (mapOfInformation.containsKey(key)) {
+                        mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
+                                , page.getSite().getName(), page.getPath(), title
+                                , mapOfInformation.get(key).snippet()
+                                , mapOfInformation.get(key).relevance() + relativeRelevance));
                     }
                 });
-        listOfInformation.sort(Comparator.comparing(InformationAboutLemmas::relevance).reversed());
     }
 
     private void enumerationOfLemmasFromQueryAndWritingRanksIntoLists(Set<Lemma> listOfLemmas
@@ -135,13 +141,16 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
             throws IOException {
         if (offset == 0) {
             if (site != null) {
-                recordInformationOfLemmasIntoList(getListOfPages(shortedListOfLemmas(listOfLemmas(query, site))));
+                recordInformationOfLemmasIntoMap(getListOfPages(shortedListOfLemmas(listOfLemmas(query, site))));
             } else {
-                recordInformationOfLemmasIntoList(getListOfPages(shortedListOfLemmas(listOfLemmas(query))));
+                recordInformationOfLemmasIntoMap(getListOfPages(shortedListOfLemmas(listOfLemmas(query))));
             }
         }
         AtomicInteger count = new AtomicInteger();
         List<InformationAboutLemmas> data = new ArrayList<>();
+        ArrayList<InformationAboutLemmas> listOfInformation = new ArrayList<>(mapOfInformation.entrySet()
+                .stream().map(Map.Entry::getValue).toList());
+        listOfInformation.sort(Comparator.comparing(InformationAboutLemmas::relevance).reversed());
         listOfInformation.forEach(informationAboutLemmas -> {
             count.getAndIncrement();
             if (count.get() >= offset && count.get() <= offset + limit) {
@@ -149,7 +158,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
             }
         });
         data.sort(Comparator.comparing(InformationAboutLemmas::relevance).reversed());
-        return new InformationAboutSearching(true, listOfInformation.size(), data);
+        return new InformationAboutSearching(true, mapOfInformation.size(), data);
     }
 
     // Метод для получения строки сниппета.

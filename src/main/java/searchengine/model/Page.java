@@ -11,6 +11,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
+@Table(indexes = {@Index(columnList = "path", unique = true)})
 public class Page {
     public Page(String path, int code, String content, Site site) {
         this.path = path;

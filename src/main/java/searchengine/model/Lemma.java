@@ -8,7 +8,7 @@ import javax.persistence.*;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(indexes = {@Index(columnList = "site_id, lemma")})
+@Table(indexes = {@Index(columnList = "site_id, lemma", unique = true)})
 public class Lemma {
     public Lemma(Site site, String lemma, int frequency) {
         this.site = site;

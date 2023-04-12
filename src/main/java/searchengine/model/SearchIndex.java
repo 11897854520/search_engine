@@ -10,7 +10,7 @@ import javax.persistence.*;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(indexes = {@Index(columnList = "lemma_id"), @Index(columnList = "page_id")})
+@Table(indexes = {@Index(columnList = "lemma_id, page_id", unique = true)})
 public class SearchIndex {
     public SearchIndex(Page page, int lemmaId, float lemmaRank) {
         this.page = page;

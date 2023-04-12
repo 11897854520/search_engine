@@ -68,11 +68,15 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
 
     // Возвращаем леммы со значением "frequency" не более 70 % от максимального значения для данного сайта
     private List<Lemma> shortedListOfLemmas(List<Lemma> listOfLemmas) {
+        Map<Integer, Integer> maxFrequencies = new HashMap<>();
+        siteRepository.findAll().forEach(site ->
+                maxFrequencies.put(site.getId(), lemmaRepository.getMaxFrequencyBySiteId(site.getId()))
+        );
         return listOfLemmas.stream()
                 .filter(lemma -> lemma.getFrequency()
-                        <= ((lemmaRepository.getMaxFrequencyBySiteId(lemma.getSite().getId()) > 100
-                        ? lemmaRepository.getMaxFrequencyBySiteId(lemma.getSite().getId()) * 70 / 100
-                        : lemmaRepository.getMaxFrequencyBySiteId(lemma.getSite().getId()))))
+                        <= ((maxFrequencies.get(lemma.getSite().getId()) > 100
+                        ? maxFrequencies.get(lemma.getSite().getId()) * 70 / 100
+                        : maxFrequencies.get(lemma.getSite().getId()))))
                 .sorted(Comparator.comparing(Lemma::getFrequency)).collect(Collectors.toList());
     }
 
@@ -83,7 +87,6 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
             List<Page> pages = searchIndexRepository.findByLemmaId(lemma.getId()).stream()
                     .map(SearchIndex::getPage)
                     .collect(Collectors.toList());
-
             listOfPages.put(lemma, pages);
         });
         return listOfPages;

@@ -55,9 +55,8 @@ public class ContentHandling {
                 : oneChanged;
         if (!oneChanged.isEmpty() && !twoChanged.isEmpty()) {
             if (twoChanged.startsWith(startsWith) && oneChanged.length() > 1) {
-                String lemmaOne = new RussianLuceneMorphology().getNormalForms(oneChanged).get(0);
-                String lemmaTwo = new RussianLuceneMorphology().getNormalForms(twoChanged).get(0);
-                return lemmaOne.equals(lemmaTwo);
+                String lemmaFromTwoChanged = new RussianLuceneMorphology().getNormalForms(twoChanged).get(0);
+                return oneChanged.equals(lemmaFromTwoChanged);
             }
         }
         return false;

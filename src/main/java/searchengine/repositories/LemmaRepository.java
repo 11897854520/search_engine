@@ -15,7 +15,7 @@ public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
     int findIdBySiteIdAndLemma(int siteId, String lemma);
 
     @Query(value = "SELECT MAX(frequency) FROM lemma WHERE site_id = :siteId", nativeQuery = true)
-    int getMaxFrequencyBySiteId(int siteId);
+    Integer getMaxFrequencyBySiteId(int siteId);
 
     Lemma findBySiteIdAndLemma(int siteId, String lemma);
 }

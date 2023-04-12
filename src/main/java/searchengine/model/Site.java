@@ -12,7 +12,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(indexes = @Index(columnList = "url"))
+@Table(indexes = @Index(columnList = "url", unique = true))
 public class Site {
     public Site(SiteStatus status, LocalDateTime statusTime, String lastError, String url, String name) {
         this.status = status;

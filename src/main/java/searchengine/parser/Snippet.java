@@ -1,5 +1,6 @@
 package searchengine.parser;
 
+import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -14,22 +15,32 @@ import java.util.stream.Collectors;
 public class Snippet {
 
     // Метод для склонения слов из запроса
-    public static List<String> declension(String word) throws IOException {
+    public static Set<String> declension(String word) throws IOException {
         String site = "https://sklonili.ru/";
-        Document document = Jsoup.connect(site.concat(word)).userAgent("Yandex").get();
-        Elements elements = document.getElementsByAttributeValue("data-title", "склонение");
-        return elements.stream().map(Element::text).toList();
+        String oneMoreSite = "https://skloneniya.ru/";
+        Document document;
+        Elements elements;
+        document = Jsoup.connect(site.concat(word)).userAgent("Yandex").get();
+        elements = document.getElementsByAttributeValue("data-title", "склонение");
+        Set<String> declensions = new HashSet<>(elements.stream().map(Element::text).toList());
+        document = Jsoup.connect(oneMoreSite.concat(word)).userAgent("Yandex").get();
+        elements = document.select("td");
+        declensions.addAll(elements.stream().map(Element::text).collect(Collectors.toSet()));
+        declensions.add(word.toLowerCase(Locale.ROOT));
+        return declensions;
     }
 
     // Метод для получения строки сниппета.
-    public static String getSnippet(String content, Set<List<String>> forms) throws IOException {
+    public static String getSnippet(String content, Set<Set<String>> forms) throws IOException {
         String[] arrayOfLemmasFromContent = content.split(" ");
         AtomicReference<String> result = new AtomicReference<>("");
         Set<String> passedWords = new HashSet<>();
         AtomicInteger count = new AtomicInteger();
         for (String string : arrayOfLemmasFromContent) {
             count.getAndIncrement();
-            createStringOfSnippet(forms, string, result, arrayOfLemmasFromContent, passedWords, count);
+            AtomicInteger anotherCount = new AtomicInteger();
+            createStringOfSnippet(forms, string, result, arrayOfLemmasFromContent, passedWords, count
+            , anotherCount);
         }
         passedWords.forEach(s -> result.set(Arrays.stream(result.get()
                         .split(" ")).map(s1 -> s1.toLowerCase(Locale.ROOT)
@@ -41,12 +52,14 @@ public class Snippet {
     }
 
     // Метод для формирования строки сниппета
-    private static void createStringOfSnippet(Set<List<String>> forms, String string
+    private static void createStringOfSnippet(Set<Set<String>> forms, String string
             , AtomicReference<String> result
-            , String[] arrayOfLemmasFromContent, Set<String> passedWords, AtomicInteger count) {
+            , String[] arrayOfLemmasFromContent, Set<String> passedWords, AtomicInteger count
+            , AtomicInteger anotherCount) {
         forms.stream().flatMap(Collection::parallelStream).forEach(s -> {
             if (s.equalsIgnoreCase(string.replaceAll("[^А-я]", ""))
-                    && !string.matches("[1-9]") && result.get().length() < 220) {
+                    && !string.matches("[1-9]") && result.get().length() < 220
+                    && anotherCount.get() == 0) {
                 result.set(result.get()
                         .concat(result.get().length() == 0 ? "" : "... ")
                         .concat(!string.equals(arrayOfLemmasFromContent[arrayOfLemmasFromContent.length - 1])
@@ -54,6 +67,7 @@ public class Snippet {
                                 , count.get() - 1, count.get() + 5))
                                 : string));
                 passedWords.add(string);
+                anotherCount.getAndIncrement();
             }
         });
     }

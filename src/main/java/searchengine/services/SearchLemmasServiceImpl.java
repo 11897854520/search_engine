@@ -89,7 +89,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) {
         mapOfInformation.clear();
         List<Float> listOfAbsoluteRelevance = new ArrayList<>();
-        Set<List<String>> forms = getListOfPages.keySet().stream().map(Lemma::getLemma)
+        Set<Set<String>> forms = getListOfPages.keySet().stream().map(Lemma::getLemma)
                 .map(s -> {
                     try {
                         return Snippet.declension(s);

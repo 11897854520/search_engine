@@ -114,7 +114,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                         try {
                             mapOfInformation.put(key, new InformationAboutLemmas(page.getSite()
                                     .getUrl()
-                                    , page.getSite().getName(), page.getPath()
+                                    , page.getSite().getName(),page.getPath()
                                     , title
                                     , Snippet.getSnippet(content, forms), relativeRelevance));
                         } catch (IOException e) {
@@ -122,7 +122,8 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                         }
                     } else if (mapOfInformation.containsKey(key)) {
                         mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
-                                , page.getSite().getName(), mapOfInformation.get(key).url(), title
+                                , page.getSite().getName(), page.getPath()
+                                , title
                                 , mapOfInformation.get(key).snippet()
                                 , mapOfInformation.get(key).relevance() + relativeRelevance));
                     }

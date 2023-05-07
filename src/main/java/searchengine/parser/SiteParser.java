@@ -7,6 +7,9 @@ import org.jsoup.select.Elements;
 import searchengine.config.SitesList;
 import searchengine.model.Page;
 import searchengine.model.Site;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
+import searchengine.repositories.SearchIndexRepository;
 import searchengine.services.IndexSitesService;
 import searchengine.services.IndexSitesServiceImpl;
 
@@ -16,27 +19,28 @@ import java.util.concurrent.RecursiveTask;
 
 // Класс для рекурсивного обхода сайтов при помощи forkJoin.
 @RequiredArgsConstructor
-public class SiteParser extends RecursiveTask<List<Page>> {
+public class SiteParser extends RecursiveTask<Set<Page>> {
     private final String url;
-    protected static final Set<String> COPY_LINKS = new HashSet<>();
-    private List<Page> pageList = new ArrayList<>();
     private final Site site;
+    private Set<Page> pageSet = new HashSet<>();
+    private final Set<String> copyLinks;
+    private final PageRepository pageRepository;
+    private final LemmaRepository lemmaRepository;
+    private final SearchIndexRepository searchIndexRepository;
+    private final Map<String, Integer> frequencyOfLemmas;
     private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
 
+
     @Override
-    protected List<Page> compute() {
+    protected Set<Page> compute() {
         try {
             for (SiteParser parser : parse()) {
-                pageList.addAll(parser.join());
+                pageSet.addAll(parser.join());
             }
-        } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-        return pageList;
+        return pageSet;
     }
 
     protected Document document(String page) throws IOException {
@@ -45,32 +49,48 @@ public class SiteParser extends RecursiveTask<List<Page>> {
     }
 
     private Set<SiteParser> parse() throws InterruptedException, IOException {
-        Set<SiteParser> task = new HashSet<>();
+        Set<SiteParser> tasks = new HashSet<>();
         Thread.sleep(150);
         Elements elements = document(url).select("a");
         elements.forEach(element -> {
-            String links = element.attr("abs:href");
-            String path = links.contains(url) ? links.replace(url, "") : links;
-            int code;
+            String link = element.attr("abs:href");
+            String siteUrl = site.getUrl();
+            String path = link.replace(siteUrl, "");
+            Integer code;
             String content = "";
-            if (!links.contains("pdf") && !links.isEmpty() && !links.contains("#")
-                    && !COPY_LINKS.contains(links) && links.contains(url)
-                    && !links.equals(url)) {
+            if (!link.contains("pdf") && !link.isEmpty() && !link.contains("#") && !link.endsWith("jpg")
+                    && !copyLinks.contains(link) && !link.equals(url) && link.startsWith(siteUrl)
+                    && !link.contains("?") && !link.endsWith("mp4")
+                    && !link.endsWith("JPG") && !link.endsWith("jpeg") && !link.endsWith("PDF")
+                    && !link.equals(siteUrl.concat("/")) && !link.endsWith("png")) {
                 try {
-                    content = document(links).outerHtml();
-                    code = document(links).connection().response().statusCode();
-                } catch (IOException e) {
-                    code = Integer.parseInt(e.getMessage().replaceAll("\\D+", ""));
+                    content = document(link).outerHtml();
+                    code = document(link).connection().response().statusCode();
+                } catch (Exception e) {
+                    code = Integer.parseInt(e.getMessage().replaceAll("\\D+", "")
+                            .substring(0, 3));
                 }
-                SiteParser parser = new SiteParser(links, site);
+                System.out.println(link);
+                SiteParser parser = new SiteParser(link, site, copyLinks, pageRepository, lemmaRepository
+                        , searchIndexRepository, frequencyOfLemmas);
                 parser.fork();
-                task.add(parser);
-                COPY_LINKS.add(links);
-                pageList.add(new Page(path, code, content, site));
+                tasks.add(parser);
+                copyLinks.add(link);
+                pageSet.add(new Page(path, code, content, site));
+                if (pageSet.size() > 600) {
+                    try {
+                        pageRepository.saveAll(pageSet);
+                        ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, site, lemmaRepository
+                                , searchIndexRepository, frequencyOfLemmas);
+                        pageSet.clear();
+                    } catch (Exception e) {
+                        System.out.println(e.getMessage());
+                    }
+                }
                 indexSitesService.interruptThread();
             }
         });
-        return task;
+        return tasks;
     }
 }
 

@@ -1,9 +1,7 @@
 package searchengine.model;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,7 +36,7 @@ public class Site {
     @Column(nullable = false, columnDefinition = "VARCHAR(255)")
     private String name;
 
-    @OneToMany(mappedBy = "site", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "site", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Page> pageList;
 
     @OneToMany(mappedBy = "site", cascade = CascadeType.ALL)

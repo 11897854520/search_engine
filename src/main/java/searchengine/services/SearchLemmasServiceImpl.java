@@ -1,7 +1,5 @@
 package searchengine.services;
-
 import lombok.RequiredArgsConstructor;
-import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,14 +12,13 @@ import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.SearchIndex;
 import searchengine.parser.ContentHandling;
+import searchengine.parser.Snippet;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.SearchIndexRepository;
 import searchengine.repositories.SiteRepository;
-
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 // Класс для нахождения страниц, на которых встречаются слова, содержащиеся в запросе.
@@ -36,17 +33,14 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     private SiteRepository siteRepository;
     private Map<String, InformationAboutLemmas> mapOfInformation
             = new TreeMap();
-    private String query = "";
 
     // Получаем список лемм, соответствующих запросу (если не указан сайт для поиска)
     private List<Lemma> listOfLemmas(String text) throws IOException {
         List<Lemma> lemmas = new ArrayList<>();
-        query = "";
         ContentHandling.getAmountOfLemmas(text).keySet().forEach(s -> {
             if (lemmaRepository.findByLemma(s) != null) {
                 lemmas.addAll(lemmaRepository.findByLemma(s));
             }
-            query = query.concat(s).concat(" ");
         });
         return lemmas;
     }
@@ -54,14 +48,12 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     // Получаем список лемм, соответствующих запросу (если указан сайт для поиска)
     private List<Lemma> listOfLemmas(String text, String url) throws IOException {
         List<Lemma> lemmas = new ArrayList<>();
-        query = "";
         ContentHandling.getAmountOfLemmas(text).keySet().forEach(s -> {
             if (lemmaRepository.findBySiteIdAndLemma(siteRepository.findByUrl(url).getId()
                     , s) != null) {
                 lemmas.add(lemmaRepository.findBySiteIdAndLemma(siteRepository.findByUrl(url).getId()
                         , s));
             }
-            query = query.concat(s).concat(" ");
         });
         return lemmas;
     }
@@ -97,31 +89,40 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) {
         mapOfInformation.clear();
         List<Float> listOfAbsoluteRelevance = new ArrayList<>();
+        Set<List<String>> forms = getListOfPages.keySet().stream().map(Lemma::getLemma)
+                .map(s -> {
+                    try {
+                        return Snippet.declension(s);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).collect(Collectors.toSet());
         getListOfPages.values().stream().flatMap(Collection::parallelStream)
                 .forEach(page -> {
                     String title = Jsoup.parse(page.getContent()).title();
                     List<Float> listOfRelevance = new ArrayList<>();
-                    Set<String> toRemoveEqualsLemmas = new HashSet<>();
                     String key = page.getPath() + title;
                     enumerationOfLemmasFromQueryAndWritingRanksIntoLists(getListOfPages.keySet()
-                            , toRemoveEqualsLemmas, page, listOfRelevance);
+                            , page, listOfRelevance);
                     float absoluteRelevance = (float) listOfRelevance.stream()
                             .mapToDouble(Float::floatValue).sum();
                     listOfAbsoluteRelevance.add(absoluteRelevance);
                     float relativeRelevance = absoluteRelevance /
                             (listOfAbsoluteRelevance.stream().max(Float::compareTo).get());
-                    if (toRemoveEqualsLemmas.size() == listOfRelevance.size()
-                            && !mapOfInformation.containsKey(key)) {
+                    if (forms.size() == listOfRelevance.size() && !mapOfInformation.containsKey(key)) {
+                        String content = ContentHandling.cleanedPageContents(page.getContent());
                         try {
-                            mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
-                                    , page.getSite().getName(), page.getPath(), title
-                                    , getSnippet(page.getContent(), query), relativeRelevance));
+                            mapOfInformation.put(key, new InformationAboutLemmas(page.getSite()
+                                    .getUrl()
+                                    , page.getSite().getName(), page.getPath()
+                                    , title
+                                    , Snippet.getSnippet(content, forms), relativeRelevance));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                     } else if (mapOfInformation.containsKey(key)) {
                         mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
-                                , page.getSite().getName(), page.getPath(), title
+                                , page.getSite().getName(), mapOfInformation.get(key).url(), title
                                 , mapOfInformation.get(key).snippet()
                                 , mapOfInformation.get(key).relevance() + relativeRelevance));
                     }
@@ -129,9 +130,8 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     }
 
     private void enumerationOfLemmasFromQueryAndWritingRanksIntoLists(Set<Lemma> listOfLemmas
-            , Set<String> toRemoveEqualsLemmas, Page page, List<Float> listOfRelevance) {
+            , Page page, List<Float> listOfRelevance) {
         listOfLemmas.forEach(lemma -> {
-            toRemoveEqualsLemmas.add(lemma.getLemma());
             if (searchIndexRepository.getRankByLemmaIdAndPageId(lemma.getId(), page.getId()) != null) {
                 listOfRelevance.add(searchIndexRepository.getRankByLemmaIdAndPageId(lemma.getId()
                         , page.getId()));
@@ -142,6 +142,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     // Метод возвращающий результаты обработки запроса.
     private InformationAboutSearching searchResult(String query, String site, int offset, int limit)
             throws IOException {
+        long a = System.currentTimeMillis();
         if (offset == 0) {
             if (site != null) {
                 recordInformationOfLemmasIntoMap(getListOfPages(shortedListOfLemmas(listOfLemmas(query, site))));
@@ -151,8 +152,8 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         }
         AtomicInteger count = new AtomicInteger();
         List<InformationAboutLemmas> data = new ArrayList<>();
-        ArrayList<InformationAboutLemmas> listOfInformation = new ArrayList<>(mapOfInformation.entrySet()
-                .stream().map(Map.Entry::getValue).toList());
+        ArrayList<InformationAboutLemmas> listOfInformation = new ArrayList<>(mapOfInformation.values()
+                .stream().toList());
         listOfInformation.sort(Comparator.comparing(InformationAboutLemmas::relevance).reversed());
         listOfInformation.forEach(informationAboutLemmas -> {
             count.getAndIncrement();
@@ -161,52 +162,9 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
             }
         });
         data.sort(Comparator.comparing(InformationAboutLemmas::relevance).reversed());
+        long b = System.currentTimeMillis();
+        System.out.println(b - a);
         return new InformationAboutSearching(true, mapOfInformation.size(), data);
-    }
-
-    // Метод для получения строки сниппета.
-    private String getSnippet(String html, String query) throws IOException {
-        String[] arrayOfWordsFromQuery = query.split(" ");
-        String[] arrayOfLemmasFromHtml = Jsoup.parse(html).text().split(" ");
-        AtomicReference<String> result = new AtomicReference<>("");
-        List<String> passedLemmas = new ArrayList<>();
-        Set<String> boldWords = new HashSet<>();
-        for (String s : arrayOfWordsFromQuery) {
-            int count = 0;
-            String queryLemma = new RussianLuceneMorphology().getNormalForms(s).get(0);
-            for (String word : arrayOfLemmasFromHtml) {
-                count++;
-                createStringOfSnippet(boldWords, passedLemmas, arrayOfLemmasFromHtml, queryLemma
-                        , arrayOfWordsFromQuery, s, word
-                        , result, count);
-            }
-        }
-        boldWords.forEach(s -> {
-            result.set(Arrays.stream(result.get()
-                            .split(" ")).map(s1 -> s1.toLowerCase(Locale.ROOT).contains(s)
-                            ? s1.replace(s1, "<b>".concat(s1).concat("</b>")) : " ".concat(s1).concat(" "))
-                    .collect(Collectors.joining()));
-        });
-        result.set("<html>".concat(result.get()).concat("</html>"));
-        return result.get();
-    }
-
-    // Метод для формирования строки сниппета.
-    private void createStringOfSnippet(Set<String> boldWords, List<String> passedLemmas
-            , String[] arrayOfLemmasFromHtml, String queryLemma, String[] arrayOfWordsFromQuery, String s
-            , String word, AtomicReference<String> result, int count) throws IOException {
-        if (!passedLemmas.contains(queryLemma)) {
-            if (ContentHandling.lemmasIsEquals(s, word)
-                    && passedLemmas.size() <= arrayOfWordsFromQuery.length) {
-                boldWords.add(word.toLowerCase(Locale.ROOT).replaceAll("[^а-я]", ""));
-                result.set(result.get().length() < 300 ? result.get()
-                        .concat(result.get().length() == 0 ? "" : "... ")
-                        .concat(!word.equals(arrayOfLemmasFromHtml[arrayOfLemmasFromHtml.length - 1])
-                                ? String.join(" ", Arrays.copyOfRange(arrayOfLemmasFromHtml
-                                , count - 1, count + 5)) : word) : result.get());
-                passedLemmas.add(queryLemma);
-            }
-        }
     }
 
     public ResponseEntity<?> startSearchingLemmasInController(String query, String site, int offset, int limit)

@@ -1,14 +1,12 @@
 package searchengine.model;
-
 import lombok.*;
-
 import javax.persistence.*;
-
+import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(indexes = {@Index(columnList = "site_id, lemma", unique = true)})
+@Table(indexes = {@Index(columnList = "site_id, lemma"), @Index(columnList = "site_id")})
 public class Lemma {
     public Lemma(Site site, String lemma, int frequency) {
         this.site = site;
@@ -27,4 +25,10 @@ public class Lemma {
     private String lemma;
     @Column(nullable = false)
     private int frequency;
+    @OneToMany(mappedBy = "lemma", cascade = CascadeType.ALL)
+    private List<SearchIndex> searchIndexList;
+    public void setFrequency(int frequency) {
+        this.frequency = frequency;
+    }
+
 }

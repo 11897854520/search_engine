@@ -1,9 +1,7 @@
 package searchengine.model;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 import javax.persistence.*;
 
 @Entity
@@ -12,10 +10,10 @@ import javax.persistence.*;
 @NoArgsConstructor
 @Table(indexes = {@Index(columnList = "lemma_id, page_id", unique = true)})
 public class SearchIndex {
-    public SearchIndex(Page page, int lemmaId, float lemmaRank) {
+    public SearchIndex(Page page, Lemma lemma, float lemmaRank) {
         this.page = page;
         this.lemmaRank = lemmaRank;
-        this.lemmaId = lemmaId;
+        this.lemma = lemma;
     }
 
     @Id
@@ -27,6 +25,7 @@ public class SearchIndex {
     private Page page;
     @Column(nullable = false)
     private float lemmaRank;
-    @Column(name = "lemma_id")
-    private int lemmaId;
+    @ManyToOne
+    @JoinColumn(name = "lemma_id")
+    private Lemma lemma;
 }

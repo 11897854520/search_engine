@@ -3,6 +3,7 @@ package searchengine.parser;
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
+import org.apache.lucene.search.MultiCollectorManager;
 import org.jsoup.Jsoup;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
@@ -12,13 +13,14 @@ import searchengine.repositories.*;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 // Класс для обработки содержимого страниц.
 
 @RequiredArgsConstructor
 public class ContentHandling {
     // Метод для очищения содержимого страниц от html-тегов.
-    private static String cleanedPageContents(String html) {
+    public static String cleanedPageContents(String html) {
         return Jsoup.parse(html).text();
     }
 
@@ -47,21 +49,6 @@ public class ContentHandling {
         return lemmas;
     }
 
-    // Метод для сравнения лемм разных слов.
-    public static boolean lemmasIsEquals(String one, String two) throws IOException {
-        String oneChanged = one.toLowerCase(Locale.ROOT).replaceAll("([^а-я\\s])", "");
-        String twoChanged = two.toLowerCase(Locale.ROOT).replaceAll("([^а-я\\s])", "");
-        String startsWith = oneChanged.length() > 4 ? oneChanged.substring(0, oneChanged.length() / 2)
-                : oneChanged;
-        if (!oneChanged.isEmpty() && !twoChanged.isEmpty()) {
-            if (twoChanged.startsWith(startsWith) && oneChanged.length() > 1) {
-                String lemmaFromTwoChanged = new RussianLuceneMorphology().getNormalForms(twoChanged).get(0);
-                return oneChanged.equals(lemmaFromTwoChanged);
-            }
-        }
-        return false;
-    }
-
     // Метод для определения соответствия слова указанному типу.
     private static boolean unneededTypeOfWord(List<String> typeOfWord) {
         String[] types = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
@@ -71,64 +58,62 @@ public class ContentHandling {
         return false;
     }
 
-    // Метод для записи данных в таблицы "lemma" и "search_Index"
-    public static void writeLemmaAndIndexIntoSql(LemmaRepository lemmaRepository
-            , SearchIndexRepository searchIndexRepository, List<Page> pageList, Site site) {
-        if (!pageList.isEmpty()) {
-            writeLemmaIntoSql(lemmaRepository, pageList, site);
-            writeIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, site);
+    //Метод для записи лемм и поисковых индексов в базу данных.
+    public static synchronized void writeLemmasAndSearchIndexIntoSql(Set<Page> pageSet, Site site
+            , LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository
+            , Map<String, Integer> frequencyOfLemmas) {
+        Map<String, Lemma> lemmaMap = new HashMap<>();
+        if (!pageSet.isEmpty()) {
+            enumOfLemmasAndWritingIntoMap(pageSet, frequencyOfLemmas
+                    , site, lemmaRepository, lemmaMap);
+            lemmaRepository.saveAll(lemmaMap.values());
+            searchIndexRepository.saveAll(enumOfLemmasAndCreateSearchIndex(pageSet, lemmaMap));
         }
     }
 
-    //Метод для записи лемм в базу данных.
-    private static void writeLemmaIntoSql(LemmaRepository lemmaRepository,
-                                          List<Page> pageList, Site site) {
-        Map<String, Lemma> lemmaMap = new TreeMap<>();
-        pageList.forEach(page -> {
-            String html = page.getContent();
-            String cleanedContent = cleanedPageContents(html);
-            try {
-                enumerationOfLemmasAndWritingIntoMap(site, cleanedContent, lemmaMap);
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-            }
-        });
-        lemmaRepository.saveAll(lemmaMap.values());
-    }
+    private static void enumOfLemmasAndWritingIntoMap(Set<Page> pageSet
+            , Map<String, Integer> frequencyOfLemmas, Site site, LemmaRepository lemmaRepository
+            , Map<String, Lemma> lemmaMap) {
 
-    //Метод для перебора полученных из содержимого сайта лемм и записи их в Мар.
-    private static void enumerationOfLemmasAndWritingIntoMap(Site site, String cleanedContent
-            , Map<String, Lemma> lemmaMap) throws IOException {
-        getAmountOfLemmas(cleanedContent).forEach((s, integer) -> {
-            Lemma lemma = new Lemma(site, s, 1);
-            String key = site.getName() + s;
-            if (!lemmaMap.containsKey(key)) {
-                lemmaMap.put(key, lemma);
-            } else {
-                lemmaMap.put(key, new Lemma(site, s
-                        , lemmaMap.get(key).getFrequency() + 1));
-            }
-        });
-    }
-
-    //Метод для записи в базу данных объектов класса SearchIndex.
-    private static void writeIndexIntoSql(LemmaRepository lemmaRepository
-            , SearchIndexRepository searchIndexRepository, List<Page> pageList, Site site) {
-        List<SearchIndex> searchIndexList = new ArrayList<>();
-        pageList.forEach(page -> {
-            String html = page.getContent();
-            String cleanedContent = cleanedPageContents(html);
+        pageSet.forEach(page -> {
+            String cleanedContent = cleanedPageContents(page.getContent());
             try {
                 getAmountOfLemmas(cleanedContent).forEach((s, integer) -> {
-                    SearchIndex searchIndex = new SearchIndex(page
-                            , lemmaRepository.findIdBySiteIdAndLemma(site.getId(), s), integer);
-                    searchIndexList.add(searchIndex);
+                    Lemma lemma;
+                    if (!frequencyOfLemmas.containsKey(s) && !lemmaMap.containsKey(s)) {
+                        lemma = new Lemma(site, s, 1);
+                        frequencyOfLemmas.put(s, 1);
+                        lemmaMap.put(s, lemma);
+                    } else if (frequencyOfLemmas.containsKey(s) && !lemmaMap.containsKey(s)) {
+                        lemma = lemmaRepository.findBySiteIdAndLemma(site.getId(), s);
+                        lemma.setFrequency(lemma.getFrequency() + 1);
+                        frequencyOfLemmas.put(s, lemma.getFrequency());
+                        lemmaMap.put(s, lemma);
+                    } else if (frequencyOfLemmas.containsKey(s) && lemmaMap.containsKey(s)) {
+                        lemma = lemmaMap.get(s);
+                        lemma.setFrequency(lemma.getFrequency() + 1);
+                    }
                 });
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
         });
-        searchIndexRepository.saveAll(searchIndexList);
+    }
+
+    private static List<SearchIndex> enumOfLemmasAndCreateSearchIndex(Set<Page> pageSet, Map<String
+            , Lemma> lemmaMap) {
+        List<SearchIndex> searchIndexList = new ArrayList<>();
+        pageSet.forEach(page -> {
+            String cleanedContent = cleanedPageContents(page.getContent());
+            try {
+                getAmountOfLemmas(cleanedContent).forEach((s, integer)
+                        -> searchIndexList.add(new SearchIndex(page
+                        , lemmaMap.get(s), integer)));
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+            }
+        });
+        return searchIndexList;
     }
 }
 

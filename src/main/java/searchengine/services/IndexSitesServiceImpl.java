@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.model.SiteStatus;
-import searchengine.parser.Task;
+import searchengine.parser.SqlWriter;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.Response;
@@ -40,7 +40,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
             interruptIt = false;
             deleteSiteFromDataBaseIfDoesNotExist();
             sites.getSites().forEach(site -> {
-                thread = new Thread(new Task(site, siteRepository, pageRepository
+                thread = new Thread(new SqlWriter(site, siteRepository, pageRepository
                         , lemmaRepository, searchIndexRepository));
                 thread.start();
             });
@@ -73,7 +73,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
             updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
         } else {
             interruptIt = false;
-            thread = new Thread(new Task(site, siteRepository, pageRepository
+            thread = new Thread(new SqlWriter(site, siteRepository, pageRepository
                     , lemmaRepository, searchIndexRepository));
             thread.start();
         }
@@ -89,7 +89,6 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
     // Метод для остановки индексации.
     private void stopIndexing() {
-
         if (thread != null) {
             interruptIt = true;
             updateSite(SiteStatus.INDEXING, SiteStatus.FAILED, null, ERROR);

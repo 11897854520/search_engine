@@ -1,4 +1,5 @@
 package searchengine.parser;
+
 import lombok.RequiredArgsConstructor;
 import searchengine.config.SitesList;
 import searchengine.model.Page;
@@ -11,36 +12,38 @@ import searchengine.model.SiteStatus;
 import searchengine.services.IndexSitesService;
 import searchengine.services.IndexSitesServiceImpl;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 
 @RequiredArgsConstructor
-public class Task implements Runnable {
+public class SqlWriter implements Runnable {
     private final searchengine.config.Site site;
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
+    private Set<String> copyLinks = new HashSet<>();
+    private Set<Page> pageSet = new HashSet<>();
+    Map<String, Integer> frequencyOfLemmas = new HashMap<>();
     private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
 
     @Override
     public void run() {
         try {
             if (siteRepository.findByUrl(site.getUrl()) != null) {
-                rewriteSitesAndPagesIntoSql();
+                rewriteAllIntoSql();
             } else {
-                writeSitesAndPagesIntoSql();
+                writeAllIntoSql();
             }
         } catch (Exception e) {
-            System.out.println(e);;
+            System.out.println(e.getMessage());
         }
         IndexSitesServiceImpl.setCount(IndexSitesServiceImpl.getCount() + 1);
     }
 
     // Метод для записи данных в sql, если таблицы не заполнены.
-    private synchronized void writeSitesAndPagesIntoSql()  {
+    private synchronized void writeAllIntoSql() {
         String error = null;
         Site siteTable;
         siteTable = new Site(SiteStatus.INDEXING
@@ -49,11 +52,13 @@ public class Task implements Runnable {
                 , site.getName());
         siteRepository.save(siteTable);
         indexSitesService.interruptThread();
-        SiteParser siteParser = new SiteParser(site.getUrl(), siteTable);
-        List<Page> pageList = new ForkJoinPool().invoke(siteParser);
+        SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
+                , searchIndexRepository, frequencyOfLemmas);
+        pageSet.addAll(new ForkJoinPool().invoke(siteParser));
+        pageRepository.saveAll(pageSet);
+        ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository
+                , frequencyOfLemmas);
         try {
-            pageRepository.saveAll(pageList);
-            ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
             siteParser.document(site.getUrl()).connection().response().statusCode();
         } catch (Exception e) {
             error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();
@@ -72,7 +77,7 @@ public class Task implements Runnable {
     }
 
     // Метод для записи данных в sql, если таблицы уже заполнены.
-    private synchronized void rewriteSitesAndPagesIntoSql()  {
+    private synchronized void rewriteAllIntoSql() {
         String error = null;
         Site siteTable;
         Site old = siteRepository.findByUrl(site.getUrl());
@@ -83,12 +88,14 @@ public class Task implements Runnable {
         siteRepository.delete(old);
         siteRepository.save(siteTable);
         indexSitesService.interruptThread();
-        SiteParser.COPY_LINKS.clear();
-        SiteParser siteParser = new SiteParser(site.getUrl(), siteTable);
-        List<Page> pageList = new ForkJoinPool().invoke(siteParser);
+        copyLinks.clear();
+        SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
+                , searchIndexRepository, frequencyOfLemmas);
+        pageSet.addAll(new ForkJoinPool().invoke(siteParser));
+        pageRepository.saveAll(pageSet);
+        ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository
+                , frequencyOfLemmas);
         try {
-            pageRepository.saveAll(pageList);
-            ContentHandling.writeLemmaAndIndexIntoSql(lemmaRepository, searchIndexRepository, pageList, siteTable);
             siteParser.document(site.getUrl()).connection().response().statusCode();
         } catch (Exception e) {
             error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();

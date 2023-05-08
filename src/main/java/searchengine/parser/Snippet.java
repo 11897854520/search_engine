@@ -59,13 +59,13 @@ public class Snippet {
         forms.stream().flatMap(Collection::parallelStream).forEach(s -> {
             if (s.equalsIgnoreCase(string.replaceAll("[^А-я]", ""))
                     && !string.matches("[1-9]") && result.get().length() < 220
-                    && anotherCount.get() == 0) {
-                result.set(result.get()
+                    ) {
+                result.set(anotherCount.getAndIncrement() < 2 ? result.get()
                         .concat(result.get().length() == 0 ? "" : "... ")
                         .concat(!string.equals(arrayOfLemmasFromContent[arrayOfLemmasFromContent.length - 1])
                                 ? String.join(" ", Arrays.copyOfRange(arrayOfLemmasFromContent
                                 , count.get() - 1, count.get() + 5))
-                                : string));
+                                : string) : result.get() );
                 passedWords.add(string);
                 anotherCount.getAndIncrement();
             }

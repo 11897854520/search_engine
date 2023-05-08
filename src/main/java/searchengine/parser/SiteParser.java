@@ -77,7 +77,7 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
                 tasks.add(parser);
                 copyLinks.add(link);
                 pageSet.add(new Page(path, code, content, site));
-                if (pageSet.size() > 600) {
+                if (pageSet.size() > 1000) {
                     try {
                         pageRepository.saveAll(pageSet);
                         ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, site, lemmaRepository

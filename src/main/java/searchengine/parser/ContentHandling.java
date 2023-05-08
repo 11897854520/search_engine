@@ -63,20 +63,22 @@ public class ContentHandling {
             , LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository
             , Map<String, Integer> frequencyOfLemmas) {
         Map<String, Lemma> lemmaMap = new HashMap<>();
+        Map<Page, Map<String, Integer>> ranksOfLemmas = new HashMap<>();
         if (!pageSet.isEmpty()) {
             enumOfLemmasAndWritingIntoMap(pageSet, frequencyOfLemmas
-                    , site, lemmaRepository, lemmaMap);
+                    , site, lemmaRepository, lemmaMap, ranksOfLemmas);
             lemmaRepository.saveAll(lemmaMap.values());
-            searchIndexRepository.saveAll(enumOfLemmasAndCreateSearchIndex(pageSet, lemmaMap));
+            searchIndexRepository.saveAll(enumOfLemmasAndCreateSearchIndex(lemmaMap, ranksOfLemmas));
         }
     }
 
     private static void enumOfLemmasAndWritingIntoMap(Set<Page> pageSet
             , Map<String, Integer> frequencyOfLemmas, Site site, LemmaRepository lemmaRepository
-            , Map<String, Lemma> lemmaMap) {
+            , Map<String, Lemma> lemmaMap, Map<Page, Map<String, Integer>> ranksOfLemmas) {
 
         pageSet.forEach(page -> {
             String cleanedContent = cleanedPageContents(page.getContent());
+            Map<String, Integer> ranks = new HashMap<>();
             try {
                 getAmountOfLemmas(cleanedContent).forEach((s, integer) -> {
                     Lemma lemma;
@@ -93,25 +95,21 @@ public class ContentHandling {
                         lemma = lemmaMap.get(s);
                         lemma.setFrequency(lemma.getFrequency() + 1);
                     }
+                    ranks.put(s, integer);
                 });
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
+            ranksOfLemmas.put(page, ranks);
         });
     }
 
-    private static List<SearchIndex> enumOfLemmasAndCreateSearchIndex(Set<Page> pageSet, Map<String
-            , Lemma> lemmaMap) {
+    private static List<SearchIndex> enumOfLemmasAndCreateSearchIndex(Map<String
+            , Lemma> lemmaMap, Map<Page, Map<String, Integer>> ranksOfLemmas) {
         List<SearchIndex> searchIndexList = new ArrayList<>();
-        pageSet.forEach(page -> {
-            String cleanedContent = cleanedPageContents(page.getContent());
-            try {
-                getAmountOfLemmas(cleanedContent).forEach((s, integer)
-                        -> searchIndexList.add(new SearchIndex(page
-                        , lemmaMap.get(s), integer)));
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-            }
+        ranksOfLemmas.forEach((page, stringIntegerMap) -> {
+            stringIntegerMap.forEach((s, integer) -> searchIndexList.add(new SearchIndex(page
+                    , lemmaMap.get(s), integer)));
         });
         return searchIndexList;
     }

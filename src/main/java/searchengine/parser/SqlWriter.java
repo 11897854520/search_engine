@@ -44,7 +44,6 @@ public class SqlWriter implements Runnable {
 
     // Метод для записи данных в sql, если таблицы не заполнены.
     private synchronized void writeAllIntoSql() {
-        String error = null;
         Site siteTable;
         siteTable = new Site(SiteStatus.INDEXING
                 , LocalDateTime.now()
@@ -52,33 +51,11 @@ public class SqlWriter implements Runnable {
                 , site.getName());
         siteRepository.save(siteTable);
         indexSitesService.interruptThread();
-        SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
-                , searchIndexRepository, frequencyOfLemmas);
-        pageSet.addAll(new ForkJoinPool().invoke(siteParser));
-        pageRepository.saveAll(pageSet);
-        ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository
-                , frequencyOfLemmas);
-        try {
-            siteParser.document(site.getUrl()).connection().response().statusCode();
-        } catch (Exception e) {
-            error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();
-        }
-        indexSitesService.interruptThread();
-        Site before = siteRepository.findByUrl(site.getUrl());
-        Site after = new Site(error != null
-                ? SiteStatus.FAILED
-                : SiteStatus.INDEXED
-                , LocalDateTime.now()
-                , error
-                , before.getUrl()
-                , before.getName());
-        after.setId(before.getId());
-        siteRepository.save(after);
+        parsingOfSiteAndWritingIntoSql(siteTable);
     }
 
     // Метод для записи данных в sql, если таблицы уже заполнены.
     private synchronized void rewriteAllIntoSql() {
-        String error = null;
         Site siteTable;
         Site old = siteRepository.findByUrl(site.getUrl());
         siteTable = new Site(SiteStatus.INDEXING
@@ -89,6 +66,11 @@ public class SqlWriter implements Runnable {
         siteRepository.save(siteTable);
         indexSitesService.interruptThread();
         copyLinks.clear();
+        parsingOfSiteAndWritingIntoSql(siteTable);
+    }
+
+    private void parsingOfSiteAndWritingIntoSql(Site siteTable) {
+        String error = null;
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
                 , searchIndexRepository, frequencyOfLemmas);
         pageSet.addAll(new ForkJoinPool().invoke(siteParser));

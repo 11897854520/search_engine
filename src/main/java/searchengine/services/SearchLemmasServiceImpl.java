@@ -89,19 +89,19 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) {
         mapOfInformation.clear();
         List<Float> listOfAbsoluteRelevance = new ArrayList<>();
-        Set<Set<String>> forms = getListOfPages.keySet().stream().map(Lemma::getLemma)
-                .map(s -> {
-                    try {
-                        return Snippet.declension(s);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }).collect(Collectors.toSet());
+        Map<String, Set<String>> forms = new HashMap<>();
+        getListOfPages.keySet().forEach(lemma -> {
+            try {
+                forms.put(lemma.getLemma(), Snippet.declension(lemma.getLemma()));
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        });
         getListOfPages.values().stream().flatMap(Collection::parallelStream)
                 .forEach(page -> {
                     String title = Jsoup.parse(page.getContent()).title();
                     List<Float> listOfRelevance = new ArrayList<>();
-                    String key = page.getPath() + title;
+                    String key = page.getPath() + title + page.getSite().getName();
                     enumerationOfLemmasFromQueryAndWritingRanksIntoLists(getListOfPages.keySet()
                             , page, listOfRelevance);
                     float absoluteRelevance = (float) listOfRelevance.stream()
@@ -114,18 +114,18 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                         try {
                             mapOfInformation.put(key, new InformationAboutLemmas(page.getSite()
                                     .getUrl()
-                                    , page.getSite().getName(),page.getPath()
+                                    , page.getSite().getName(), page.getPath()
                                     , title
                                     , Snippet.getSnippet(content, forms), relativeRelevance));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
-                    } else if (mapOfInformation.containsKey(key)) {
+                    } else if (forms.size() == listOfRelevance.size() && mapOfInformation.containsKey(key)) {
                         mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
                                 , page.getSite().getName(), page.getPath()
                                 , title
                                 , mapOfInformation.get(key).snippet()
-                                , mapOfInformation.get(key).relevance() + relativeRelevance));
+                                , mapOfInformation.get(key).relevance()));
                     }
                 });
     }

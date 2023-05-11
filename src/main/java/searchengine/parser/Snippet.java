@@ -31,16 +31,17 @@ public class Snippet {
     }
 
     // Метод для получения строки сниппета.
-    public static String getSnippet(String content, Set<Set<String>> forms) throws IOException {
+    public static String getSnippet(String content, Map<String, Set<String>> forms) throws IOException {
         String[] arrayOfLemmasFromContent = content.split(" ");
         AtomicReference<String> result = new AtomicReference<>("");
         Set<String> passedWords = new HashSet<>();
         AtomicInteger count = new AtomicInteger();
+        List<String> forbiddenKey = new ArrayList<>();
+        AtomicInteger anotherCount = new AtomicInteger();
         for (String string : arrayOfLemmasFromContent) {
             count.getAndIncrement();
-            AtomicInteger anotherCount = new AtomicInteger();
             createStringOfSnippet(forms, string, result, arrayOfLemmasFromContent, passedWords, count
-            , anotherCount);
+                    , forbiddenKey);
         }
         passedWords.forEach(s -> result.set(Arrays.stream(result.get()
                         .split(" ")).map(s1 -> s1.toLowerCase(Locale.ROOT)
@@ -52,24 +53,27 @@ public class Snippet {
     }
 
     // Метод для формирования строки сниппета
-    private static void createStringOfSnippet(Set<Set<String>> forms, String string
+    private static void createStringOfSnippet(Map<String, Set<String>> forms, String string
             , AtomicReference<String> result
-            , String[] arrayOfLemmasFromContent, Set<String> passedWords, AtomicInteger count
-            , AtomicInteger anotherCount) {
-        forms.stream().flatMap(Collection::parallelStream).forEach(s -> {
-            if (s.equalsIgnoreCase(string.replaceAll("[^А-я]", ""))
+            , String[] arrayOfLemmasFromContent, Set<String> passedWords, AtomicInteger count,
+                                              List<String> forbiddenKey) {
+        forms.forEach((s, strings) -> strings.forEach(s1 -> {
+            if (s1.equalsIgnoreCase(string.replaceAll("[^А-я]", ""))
                     && !string.matches("[1-9]") && result.get().length() < 220
-                    ) {
-                result.set(anotherCount.getAndIncrement() < 2 ? result.get()
+                    && !forbiddenKey.contains(s)
+            ) {
+                result.set(result.get()
                         .concat(result.get().length() == 0 ? "" : "... ")
                         .concat(!string.equals(arrayOfLemmasFromContent[arrayOfLemmasFromContent.length - 1])
                                 ? String.join(" ", Arrays.copyOfRange(arrayOfLemmasFromContent
                                 , count.get() - 1, count.get() + 5))
-                                : string) : result.get() );
+                                : string));
                 passedWords.add(string);
-                anotherCount.getAndIncrement();
+                forbiddenKey.add(s);
             }
-        });
+            if (forbiddenKey.size() == forms.size()) {
+                forbiddenKey.clear();
+            }
+        }));
     }
-
 }

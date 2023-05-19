@@ -50,7 +50,7 @@ public class ContentHandling {
     }
 
     // Метод для определения соответствия слова указанному типу.
-    private static boolean unneededTypeOfWord(List<String> typeOfWord) {
+    protected static boolean unneededTypeOfWord(List<String> typeOfWord) {
         String[] types = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
         for (String type : types) {
             return (typeOfWord.stream().map(String::toUpperCase).anyMatch(s -> s.contains(type)));
@@ -75,7 +75,6 @@ public class ContentHandling {
     private static void enumOfLemmasAndWritingIntoMap(Set<Page> pageSet
             , Map<String, Integer> frequencyOfLemmas, Site site, LemmaRepository lemmaRepository
             , Map<String, Lemma> lemmaMap, Map<Page, Map<String, Integer>> ranksOfLemmas) {
-
         pageSet.forEach(page -> {
             String cleanedContent = cleanedPageContents(page.getContent());
             Map<String, Integer> ranks = new HashMap<>();
@@ -107,10 +106,8 @@ public class ContentHandling {
     private static List<SearchIndex> enumOfLemmasAndCreateSearchIndex(Map<String
             , Lemma> lemmaMap, Map<Page, Map<String, Integer>> ranksOfLemmas) {
         List<SearchIndex> searchIndexList = new ArrayList<>();
-        ranksOfLemmas.forEach((page, stringIntegerMap) -> {
-            stringIntegerMap.forEach((s, integer) -> searchIndexList.add(new SearchIndex(page
-                    , lemmaMap.get(s), integer)));
-        });
+        ranksOfLemmas.forEach((page, stringIntegerMap) -> stringIntegerMap.forEach((s, integer) -> searchIndexList.add(new SearchIndex(page
+                , lemmaMap.get(s), integer))));
         return searchIndexList;
     }
 }

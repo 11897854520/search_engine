@@ -4,14 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import searchengine.config.SitesList;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SearchIndexRepository;
 import searchengine.services.IndexSitesService;
-import searchengine.services.IndexSitesServiceImpl;
 
 import java.io.IOException;
 import java.util.*;
@@ -28,7 +26,7 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
     private final Map<String, Integer> frequencyOfLemmas;
-    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
+    private final IndexSitesService indexSitesService;
 
 
     @Override
@@ -56,7 +54,7 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
             String link = element.attr("abs:href");
             String siteUrl = site.getUrl();
             String path = link.replace(siteUrl, "");
-            Integer code;
+            int code;
             String content = "";
             if (!link.contains("pdf") && !link.isEmpty() && !link.contains("#") && !link.endsWith("jpg")
                     && !copyLinks.contains(link) && !link.equals(url) && link.startsWith(siteUrl)
@@ -67,12 +65,12 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
                     content = document(link).outerHtml();
                     code = document(link).connection().response().statusCode();
                 } catch (Exception e) {
-                    code = Integer.parseInt(e.getMessage().replaceAll("\\D+", "")
-                            .substring(0, 3));
+                    String errorStatus = e.getMessage().replaceAll("\\D+", "");
+                    code = errorStatus.length() > 3 ? Integer.parseInt(errorStatus.substring(0, 3)) : 404;
                 }
                 System.out.println(link);
                 SiteParser parser = new SiteParser(link, site, copyLinks, pageRepository, lemmaRepository
-                        , searchIndexRepository, frequencyOfLemmas);
+                        , searchIndexRepository, frequencyOfLemmas, indexSitesService);
                 parser.fork();
                 tasks.add(parser);
                 copyLinks.add(link);
@@ -87,8 +85,8 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
                         System.out.println(e.getMessage());
                     }
                 }
-                indexSitesService.interruptThread();
             }
+            indexSitesService.interruptThread();
         });
         return tasks;
     }

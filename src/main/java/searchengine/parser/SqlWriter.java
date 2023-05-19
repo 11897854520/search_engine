@@ -23,10 +23,12 @@ public class SqlWriter implements Runnable {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
+    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
+    public static int count = 0;
     private Set<String> copyLinks = new HashSet<>();
     private Set<Page> pageSet = new HashSet<>();
-    Map<String, Integer> frequencyOfLemmas = new HashMap<>();
-    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
+    private Map<String, Integer> frequencyOfLemmas = new HashMap<>();
+    private Site siteTable;
 
     @Override
     public void run() {
@@ -39,24 +41,22 @@ public class SqlWriter implements Runnable {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-        IndexSitesServiceImpl.setCount(IndexSitesServiceImpl.getCount() + 1);
+        count++;
     }
 
     // Метод для записи данных в sql, если таблицы не заполнены.
     private synchronized void writeAllIntoSql() {
-        Site siteTable;
         siteTable = new Site(SiteStatus.INDEXING
                 , LocalDateTime.now()
                 , null, site.getUrl()
                 , site.getName());
         siteRepository.save(siteTable);
         indexSitesService.interruptThread();
-        parsingOfSiteAndWritingIntoSql(siteTable);
+        parsingSiteAndWritingIntoSql(siteTable);
     }
 
     // Метод для записи данных в sql, если таблицы уже заполнены.
     private synchronized void rewriteAllIntoSql() {
-        Site siteTable;
         Site old = siteRepository.findByUrl(site.getUrl());
         siteTable = new Site(SiteStatus.INDEXING
                 , LocalDateTime.now()
@@ -66,13 +66,13 @@ public class SqlWriter implements Runnable {
         siteRepository.save(siteTable);
         indexSitesService.interruptThread();
         copyLinks.clear();
-        parsingOfSiteAndWritingIntoSql(siteTable);
+        parsingSiteAndWritingIntoSql(siteTable);
     }
 
-    private void parsingOfSiteAndWritingIntoSql(Site siteTable) {
+    private void parsingSiteAndWritingIntoSql(Site siteTable) {
         String error = null;
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
-                , searchIndexRepository, frequencyOfLemmas);
+                , searchIndexRepository, frequencyOfLemmas, indexSitesService);
         pageSet.addAll(new ForkJoinPool().invoke(siteParser));
         pageRepository.saveAll(pageSet);
         ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository

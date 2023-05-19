@@ -1,79 +1,46 @@
 package searchengine.parser;
-
-import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
-import java.io.IOException;
+import org.apache.lucene.morphology.LuceneMorphology;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 public class Snippet {
 
-    // Метод для склонения слов из запроса
-    public static Set<String> declension(String word) throws IOException {
-        String site = "https://sklonili.ru/";
-        String oneMoreSite = "https://skloneniya.ru/";
-        Document document;
-        Elements elements;
-        document = Jsoup.connect(site.concat(word)).userAgent("Yandex").get();
-        elements = document.getElementsByAttributeValue("data-title", "склонение");
-        Set<String> declensions = new HashSet<>(elements.stream().map(Element::text).toList());
-        document = Jsoup.connect(oneMoreSite.concat(word)).userAgent("Yandex").get();
-        elements = document.select("td");
-        declensions.addAll(elements.stream().map(Element::text).collect(Collectors.toSet()));
-        declensions.add(word.toLowerCase(Locale.ROOT));
-        return declensions;
-    }
-
-    // Метод для получения строки сниппета.
-    public static String getSnippet(String content, Map<String, Set<String>> forms) throws IOException {
-        String[] arrayOfLemmasFromContent = content.split(" ");
+    public static String getSnippet(String content, Set<String> lemmas,
+                                    LuceneMorphology luceneMorphology) {
         AtomicReference<String> result = new AtomicReference<>("");
-        Set<String> passedWords = new HashSet<>();
-        AtomicInteger count = new AtomicInteger();
-        List<String> forbiddenKey = new ArrayList<>();
-        AtomicInteger anotherCount = new AtomicInteger();
-        for (String string : arrayOfLemmasFromContent) {
-            count.getAndIncrement();
-            createStringOfSnippet(forms, string, result, arrayOfLemmasFromContent, passedWords, count
-                    , forbiddenKey);
-        }
-        passedWords.forEach(s -> result.set(Arrays.stream(result.get()
-                        .split(" ")).map(s1 -> s1.toLowerCase(Locale.ROOT)
-                        .equals(s.toLowerCase(Locale.ROOT))
-                        ? s1.replace(s1, "<b>".concat(s1).concat("</b>")) : " ".concat(s1).concat(" "))
-                .collect(Collectors.joining())));
-        result.set("<html>".concat(result.get()).concat("</html>"));
+        String[] words = content.toLowerCase(Locale.ROOT)
+                .replaceAll("([^а-я\\s])", " ").trim().split(" ");
+        List<String> forbiddenLemmas = new ArrayList<>();
+        createStringOfSnippet(words, luceneMorphology, lemmas, forbiddenLemmas, result);
         return result.get();
     }
 
-    // Метод для формирования строки сниппета
-    private static void createStringOfSnippet(Map<String, Set<String>> forms, String string
-            , AtomicReference<String> result
-            , String[] arrayOfLemmasFromContent, Set<String> passedWords, AtomicInteger count,
-                                              List<String> forbiddenKey) {
-        forms.forEach((s, strings) -> strings.forEach(s1 -> {
-            if (s1.equalsIgnoreCase(string.replaceAll("[^А-я]", ""))
-                    && !string.matches("[1-9]") && result.get().length() < 220
-                    && !forbiddenKey.contains(s)
-            ) {
-                result.set(result.get()
-                        .concat(result.get().length() == 0 ? "" : "... ")
-                        .concat(!string.equals(arrayOfLemmasFromContent[arrayOfLemmasFromContent.length - 1])
-                                ? String.join(" ", Arrays.copyOfRange(arrayOfLemmasFromContent
-                                , count.get() - 1, count.get() + 5))
-                                : string));
-                passedWords.add(string);
-                forbiddenKey.add(s);
+    private static void createStringOfSnippet(String[] words, LuceneMorphology luceneMorphology
+            , Set<String> lemmas, List<String> forbiddenLemmas, AtomicReference<String> result) {
+        int count = 0;
+        for (String word : words) {
+            count++;
+            if (word.isEmpty()) {
+                continue;
             }
-            if (forbiddenKey.size() == forms.size()) {
-                forbiddenKey.clear();
+            List<String> typeOfWord = luceneMorphology.getMorphInfo(word);
+            List<String> normalWord = luceneMorphology.getNormalForms(word);
+            if (normalWord.isEmpty() || ContentHandling.unneededTypeOfWord(typeOfWord)) {
+                continue;
             }
-        }));
+            if (lemmas.contains(normalWord.get(0))
+                    && !forbiddenLemmas.contains(normalWord.get(0)) && result.get().length() < 220) {
+                result.set(result.get().concat(result.get().length() == 0 ? "" : "... ")
+                        .concat(!word.equals(words[words.length - 1])
+                                ? "<b>".concat(word).concat("</b>").concat(" ")
+                                .concat(String.join(" ", Arrays.copyOfRange(words
+                                        , count, count + 5)))
+                                : word));
+                forbiddenLemmas.add(normalWord.get(0));
+            }
+            if (forbiddenLemmas.size() == lemmas.size()) {
+                forbiddenLemmas.clear();
+            }
+        }
     }
 }

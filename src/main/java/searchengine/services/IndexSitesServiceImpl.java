@@ -25,25 +25,25 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     private LemmaRepository lemmaRepository;
     @Autowired
     private SearchIndexRepository searchIndexRepository;
-    private static int count = 0;
     private static volatile boolean interruptIt;
-    private static boolean sitesContainsUrl;
-    private Thread thread;
-    private static final String ERROR = "Произошла ошибкаю. Причина: индексация остановлена пользователем";
+    private boolean sitesContainsUrl;
+    private boolean threadsAreRunning;
+    private String error = "Произошла ошибка. Причина: индексация остановлена пользователем";
 
     // Метод для индексации или переиндексации всех сайтов из списка файла "Application.yaml"
-    private void index() {
+    private void indexAllSites() {
+        threadsAreRunning = true;
         if (interruptIt) {
             interruptIt = false;
-            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
+            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, error, null);
         } else {
             interruptIt = false;
             deleteSiteFromDataBaseIfDoesNotExist();
-            sites.getSites().forEach(site -> {
-                thread = new Thread(new SqlWriter(site, siteRepository, pageRepository
-                        , lemmaRepository, searchIndexRepository));
-                thread.start();
-            });
+            sites.getSites().forEach(site -> new Thread(new SqlWriter(site, siteRepository, pageRepository
+                    , lemmaRepository, searchIndexRepository)).start());
+        }
+        if (SqlWriter.count % sites.getSites().size() == 0 && SqlWriter.count != 0) {
+            SqlWriter.count = 0;
         }
     }
 
@@ -58,6 +58,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
     // Метод для осуществления индексации или переиндексации одного сайта из списка файла "Application.yaml"
     private void indexSingleSite(String url) {
+        threadsAreRunning = true;
         sitesContainsUrl = false;
         sites.getSites().forEach(site -> {
             if (site.getUrl().equals(url)) {
@@ -65,66 +66,53 @@ public class IndexSitesServiceImpl implements IndexSitesService {
                 changeSiteInDataBaseOrStartIndexingOfSingleSite(site);
             }
         });
+        if (SqlWriter.count == 1) {
+            threadsAreRunning = false;
+            SqlWriter.count = 0;
+        }
     }
 
     private void changeSiteInDataBaseOrStartIndexingOfSingleSite(Site site) {
         if (interruptIt) {
             interruptIt = false;
-            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, ERROR, null);
+            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, error, null);
         } else {
             interruptIt = false;
-            thread = new Thread(new SqlWriter(site, siteRepository, pageRepository
-                    , lemmaRepository, searchIndexRepository));
-            thread.start();
+            new Thread(new SqlWriter(site, siteRepository, pageRepository
+                    , lemmaRepository, searchIndexRepository)).start();
         }
-    }
-
-    // Метод, возвращающий информацию заверщилась индексация, или нет.
-    private boolean isIndexed() {
-        if (count != 0) {
-            return count % sites.getSites().size() == 0;
-        }
-        return true;
     }
 
     // Метод для остановки индексации.
     private void stopIndexing() {
-        if (thread != null) {
+        if (threadsAreRunning) {
             interruptIt = true;
-            updateSite(SiteStatus.INDEXING, SiteStatus.FAILED, null, ERROR);
+            updateSite(SiteStatus.INDEXING, SiteStatus.FAILED, null, error);
         }
     }
 
     // Метод, который возвращает информацию прервана индексация или нет.
     private boolean isInterrupted() {
-        if (thread != null) {
+        if (threadsAreRunning) {
             return interruptIt;
         }
         return true;
     }
 
-    // Метод содержащий информацию о количестве проиндексированных сайтов.
-    public static int getCount() {
-        return count;
-    }
-
-    // Метод для возврата значения переменной, которая используется для остановки индексации (потока).
-    private static boolean isInterruptIt() {
-        return interruptIt;
-    }
-
-    // Метод, возвращающий информацию о наличии адреса, указанного в запросе в списке файла "Application.yaml"
-    private static boolean isSitesContainsUrl() {
-        return sitesContainsUrl;
-    }
-
-    public static void setCount(int count) {
-        IndexSitesServiceImpl.count = count;
+    /*Метод для изменения статуса сайта и строки lastError при остановке индексации либо при запуске после
+ после остановки.*/
+    private void updateSite(SiteStatus before
+            , SiteStatus after, String lastErrorBefore, String lastErrorAfter) {
+        siteRepository.findAllByStatusAndLastError(before, lastErrorBefore).forEach(site1 -> {
+            site1.setStatus(after);
+            site1.setLastError(lastErrorAfter);
+            siteRepository.save(site1);
+        });
     }
 
     // Метод для прерывания индексации (потока).
     public void interruptThread() {
-        while (IndexSitesServiceImpl.isInterruptIt()) {
+        while (interruptIt) {
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
@@ -136,10 +124,10 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     // Метод для вызова индексации всех сайтов из API-контроллера
     public ResponseEntity<Response> startIndexingSitesInController() {
         String errorResponse = "Индексация уже запущена";
-        if (!isIndexed() && !IndexSitesServiceImpl.isInterruptIt()) {
+        if (!isInterrupted()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response(false, errorResponse));
         }
-        index();
+        indexAllSites();
         return ResponseEntity.ok(new Response(true, null));
     }
 
@@ -158,18 +146,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         String errorResponse = "Данная страница находится за пределами сайтов, " +
                 "указанных в конфигурационном файле";
         indexSingleSite(url);
-        return IndexSitesServiceImpl.isSitesContainsUrl() ? ResponseEntity.ok(new Response(true, null))
+        return sitesContainsUrl ? ResponseEntity.ok(new Response(true, null))
                 : ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response(false, errorResponse));
-    }
-
-    /*Метод для изменения статуса сайта и строки lastError при остановке индексации либо при запуске после
-   после остановки.*/
-    private void updateSite(SiteStatus before
-            , SiteStatus after, String lastErrorBefore, String lastErrorAfter) {
-        siteRepository.findAllByStatusAndLastError(before, lastErrorBefore).forEach(site1 -> {
-            site1.setStatus(after);
-            site1.setLastError(lastErrorAfter);
-            siteRepository.save(site1);
-        });
     }
 }

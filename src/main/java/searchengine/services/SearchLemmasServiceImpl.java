@@ -1,8 +1,6 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.lucene.morphology.LuceneMorphology;
-import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -92,8 +90,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
 
     // Создаем список с объектами, в которых содержится информация о наличии лемм из запроса
     // на каждой странице
-    private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) throws IOException {
-        LuceneMorphology luceneMorphology = new RussianLuceneMorphology();
+    private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) {
         listOfInformation.clear();
         Map<String, InformationAboutLemmas> mapOfInformation
                 = new TreeMap();
@@ -109,28 +106,11 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                     float absoluteRelevance = (float) listOfRelevance.stream()
                             .mapToDouble(Float::floatValue).sum();
                     listOfAbsoluteRelevance.add(absoluteRelevance);
-                    if (lemmas.size() == listOfRelevance.size() && !mapOfInformation.containsKey(key)) {
-                        String content = ContentHandling.cleanedPageContents(page.getContent());
-                        try {
-                            mapOfInformation.put(key, new InformationAboutLemmas(page.getSite()
-                                    .getUrl()
-                                    , page.getSite().getName(), page.getPath()
-                                    , title
-                                    , Snippet.getSnippet(content, lemmas, luceneMorphology)
-                                    , absoluteRelevance));
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    } else if (lemmas.size() == listOfRelevance.size() && mapOfInformation.containsKey(key)) {
-                        mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
-                                , page.getSite().getName(), page.getPath()
-                                , title
-                                , mapOfInformation.get(key).snippet()
-                                , mapOfInformation.get(key).relevance()));
-                    }
+                    writeInformationAboutLemmasIntoMap(mapOfInformation, lemmas, listOfRelevance, key, page, title
+                            , absoluteRelevance);
                 });
-         float maxOfAbsoluteRelevance = listOfAbsoluteRelevance.stream()
-                 .max(Comparator.naturalOrder()).get();
+        float maxOfAbsoluteRelevance = listOfAbsoluteRelevance.stream()
+                .max(Comparator.naturalOrder()).get();
         listOfInformation.addAll(countRelativeRelevanceAndAddInformationAboutLemmasToList(mapOfInformation
                 , maxOfAbsoluteRelevance));
     }
@@ -147,6 +127,29 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                                 , stringInformationAboutLemmasEntry.getValue().relevance()
                                 / maxOfAbsoluteRelevance)))
                 .collect(Collectors.toList());
+    }
+
+    private void writeInformationAboutLemmasIntoMap(Map<String, InformationAboutLemmas> mapOfInformation
+            , Set<String> lemmas, List<Float> listOfRelevance, String key, Page page, String title, float absoluteRelevance) {
+        if (lemmas.size() == listOfRelevance.size() && !mapOfInformation.containsKey(key)) {
+            String content = ContentHandling.cleanedPageContents(page.getContent());
+            try {
+                mapOfInformation.put(key, new InformationAboutLemmas(page.getSite()
+                        .getUrl()
+                        , page.getSite().getName(), page.getPath()
+                        , title
+                        , Snippet.getSnippet(content, lemmas)
+                        , absoluteRelevance));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else if (lemmas.size() == listOfRelevance.size() && mapOfInformation.containsKey(key)) {
+            mapOfInformation.put(key, new InformationAboutLemmas(page.getSite().getUrl()
+                    , page.getSite().getName(), page.getPath()
+                    , title
+                    , mapOfInformation.get(key).snippet()
+                    , mapOfInformation.get(key).relevance()));
+        }
     }
 
 

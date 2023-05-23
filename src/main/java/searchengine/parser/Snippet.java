@@ -1,12 +1,24 @@
 package searchengine.parser;
+
 import org.apache.lucene.morphology.LuceneMorphology;
+import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
+
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Snippet {
 
-    public static String getSnippet(String content, Set<String> lemmas,
-                                    LuceneMorphology luceneMorphology) {
+    private static LuceneMorphology luceneMorphology;
+
+    static {
+        try {
+            luceneMorphology = new RussianLuceneMorphology();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public static String getSnippet(String content, Set<String> lemmas) {
         AtomicReference<String> result = new AtomicReference<>("");
         String[] words = content.toLowerCase(Locale.ROOT)
                 .replaceAll("([^а-я\\s])", " ").trim().split(" ");

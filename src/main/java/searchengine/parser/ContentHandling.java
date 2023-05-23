@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class ContentHandling {
+
     // Метод для очищения содержимого страниц от html-тегов.
     public static String cleanedPageContents(String html) {
         return Jsoup.parse(html).text();

@@ -1,6 +1,7 @@
 package searchengine.parser;
 
 import lombok.RequiredArgsConstructor;
+import searchengine.config.ConfigurationForJsoupConnection;
 import searchengine.config.SitesList;
 import searchengine.model.Page;
 import searchengine.model.Site;
@@ -23,7 +24,9 @@ public class SqlWriter implements Runnable {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final SearchIndexRepository searchIndexRepository;
-    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList());
+    private final ConfigurationForJsoupConnection jsoupConnection;
+    private IndexSitesService indexSitesService = new IndexSitesServiceImpl(new SitesList()
+            , new ConfigurationForJsoupConnection());
     public static int count = 0;
     private Set<String> copyLinks = new HashSet<>();
     private Set<Page> pageSet = new HashSet<>();
@@ -72,7 +75,7 @@ public class SqlWriter implements Runnable {
     private void parsingSiteAndWritingIntoSql(Site siteTable) {
         String error = null;
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
-                , searchIndexRepository, frequencyOfLemmas, indexSitesService);
+                , searchIndexRepository, frequencyOfLemmas, indexSitesService, jsoupConnection);
         pageSet.addAll(new ForkJoinPool().invoke(siteParser));
         pageRepository.saveAll(pageSet);
         ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository

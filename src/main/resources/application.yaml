@@ -3,8 +3,8 @@ server:
 
 indexing-settings:
   sites:
-    - url: http://www.playback.ru
-      name: плэйбэк.ру
+    - url: https://www.svetlovka.ru
+      name: светловка.ру
     - url: https://www.lutherancathedral.ru
       name: собор.ру
     - url: https://ipfran.ru
@@ -27,7 +27,9 @@ spring:
       ddl-auto: update
     show-sql: true
 
-
+jsoup-properties:
+  user-agent: Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rvl.8.1.6.) Gecko/20070725 Firefox/2.0.0.6.
+  referrer: http://www.google.com
 
 
 

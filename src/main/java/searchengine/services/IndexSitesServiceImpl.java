@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import searchengine.config.ConfigurationForJsoupConnection;
 import searchengine.model.SiteStatus;
 import searchengine.parser.SqlWriter;
 import searchengine.config.Site;
@@ -17,6 +18,7 @@ import searchengine.repositories.*;
 @RequiredArgsConstructor
 public class IndexSitesServiceImpl implements IndexSitesService {
     private final SitesList sites;
+    private final ConfigurationForJsoupConnection jsoupConnection;
     @Autowired
     private SiteRepository siteRepository;
     @Autowired
@@ -40,7 +42,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
             interruptIt = false;
             deleteSiteFromDataBaseIfDoesNotExist();
             sites.getSites().forEach(site -> new Thread(new SqlWriter(site, siteRepository, pageRepository
-                    , lemmaRepository, searchIndexRepository)).start());
+                    , lemmaRepository, searchIndexRepository, jsoupConnection)).start());
         }
         if (SqlWriter.count % sites.getSites().size() == 0 && SqlWriter.count != 0) {
             SqlWriter.count = 0;
@@ -79,7 +81,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         } else {
             interruptIt = false;
             new Thread(new SqlWriter(site, siteRepository, pageRepository
-                    , lemmaRepository, searchIndexRepository)).start();
+                    , lemmaRepository, searchIndexRepository, jsoupConnection)).start();
         }
     }
 

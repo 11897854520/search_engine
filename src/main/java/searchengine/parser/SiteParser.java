@@ -70,7 +70,6 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
                     System.out.println(e.getMessage());
                 }
             }
-            indexSitesService.interruptThread();
         });
         return tasks;
     }
@@ -81,7 +80,7 @@ public class SiteParser extends RecursiveTask<Set<Page>> {
                 && !copyLinks.contains(link) && !link.equals(url) && link.startsWith(siteUrl)
                 && !link.contains("?") && !link.endsWith("mp4")
                 && !link.endsWith("JPG") && !link.endsWith("jpeg") && !link.endsWith("PDF")
-                && !link.equals(siteUrl.concat("/")) && !link.endsWith("png")) {
+                && !link.equals(siteUrl.concat("/")) && !link.endsWith("png") && !indexSitesService.isInterruptIt()) {
             try {
                 content = document(link).outerHtml();
                 code.set(document(link).connection().response().statusCode());

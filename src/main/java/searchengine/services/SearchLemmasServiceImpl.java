@@ -36,7 +36,6 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
     private List<InformationAboutLemmas> listOfInformation
             = new ArrayList<>();
 
-
     // Получаем список лемм, соответствующих запросу (если не указан сайт для поиска)
     private List<Lemma> listOfLemmas(String text) throws IOException {
         List<Lemma> lemmas = new ArrayList<>();
@@ -151,7 +150,6 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                     , mapOfInformation.get(key).relevance()));
         }
     }
-
 
     private void enumerationOfLemmasFromQueryAndWritingRanksIntoLists(Set<Lemma> listOfLemmas
             , Page page, List<Float> listOfRelevance) {

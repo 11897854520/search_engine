@@ -27,23 +27,17 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     private LemmaRepository lemmaRepository;
     @Autowired
     private SearchIndexRepository searchIndexRepository;
-    private static volatile boolean interruptIt;
+    private static boolean interruptIt;
     private boolean sitesContainsUrl;
     private boolean threadsAreRunning;
-    private String error = "Произошла ошибка. Причина: индексация остановлена пользователем";
 
     // Метод для индексации или переиндексации всех сайтов из списка файла "Application.yaml"
     private void indexAllSites() {
         threadsAreRunning = true;
-        if (interruptIt) {
-            interruptIt = false;
-            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, error, null);
-        } else {
-            interruptIt = false;
-            deleteSiteFromDataBaseIfDoesNotExist();
-            sites.getSites().forEach(site -> new Thread(new SqlWriter(site, siteRepository, pageRepository
-                    , lemmaRepository, searchIndexRepository, jsoupConnection)).start());
-        }
+        interruptIt = false;
+        deleteSiteFromDataBaseIfDoesNotExist();
+        sites.getSites().forEach(site -> new Thread(new SqlWriter(site, siteRepository, pageRepository
+                , lemmaRepository, searchIndexRepository, jsoupConnection)).start());
         if (SqlWriter.count % sites.getSites().size() == 0 && SqlWriter.count != 0) {
             SqlWriter.count = 0;
         }
@@ -65,7 +59,9 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         sites.getSites().forEach(site -> {
             if (site.getUrl().equals(url)) {
                 sitesContainsUrl = true;
-                changeSiteInDataBaseOrStartIndexingOfSingleSite(site);
+                interruptIt = false;
+                new Thread(new SqlWriter(site, siteRepository, pageRepository
+                        , lemmaRepository, searchIndexRepository, jsoupConnection)).start();
             }
         });
         if (SqlWriter.count == 1) {
@@ -74,22 +70,12 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         }
     }
 
-    private void changeSiteInDataBaseOrStartIndexingOfSingleSite(Site site) {
-        if (interruptIt) {
-            interruptIt = false;
-            updateSite(SiteStatus.FAILED, SiteStatus.INDEXING, error, null);
-        } else {
-            interruptIt = false;
-            new Thread(new SqlWriter(site, siteRepository, pageRepository
-                    , lemmaRepository, searchIndexRepository, jsoupConnection)).start();
-        }
-    }
-
     // Метод для остановки индексации.
     private void stopIndexing() {
         if (threadsAreRunning) {
             interruptIt = true;
-            updateSite(SiteStatus.INDEXING, SiteStatus.FAILED, null, error);
+            String error = "Произошла ошибка. Причина: индексация остановлена пользователем";
+            updateSite(error);
         }
     }
 
@@ -103,24 +89,16 @@ public class IndexSitesServiceImpl implements IndexSitesService {
 
     /*Метод для изменения статуса сайта и строки lastError при остановке индексации либо при запуске после
  после остановки.*/
-    private void updateSite(SiteStatus before
-            , SiteStatus after, String lastErrorBefore, String lastErrorAfter) {
-        siteRepository.findAllByStatusAndLastError(before, lastErrorBefore).forEach(site1 -> {
-            site1.setStatus(after);
+    private void updateSite(String lastErrorAfter) {
+        siteRepository.findAllByStatusAndLastError(SiteStatus.INDEXING, null).forEach(site1 -> {
+            site1.setStatus(SiteStatus.FAILED);
             site1.setLastError(lastErrorAfter);
             siteRepository.save(site1);
         });
     }
 
-    // Метод для прерывания индексации (потока).
-    public void interruptThread() {
-        while (interruptIt) {
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                System.out.println(e.getMessage());
-            }
-        }
+    public boolean isInterruptIt() {
+        return interruptIt;
     }
 
     // Метод для вызова индексации всех сайтов из API-контроллера

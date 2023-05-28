@@ -54,7 +54,6 @@ public class SqlWriter implements Runnable {
                 , null, site.getUrl()
                 , site.getName());
         siteRepository.save(siteTable);
-        indexSitesService.interruptThread();
         parsingSiteAndWritingIntoSql(siteTable);
     }
 
@@ -67,7 +66,6 @@ public class SqlWriter implements Runnable {
                 , old.getName());
         siteRepository.delete(old);
         siteRepository.save(siteTable);
-        indexSitesService.interruptThread();
         copyLinks.clear();
         parsingSiteAndWritingIntoSql(siteTable);
     }
@@ -77,24 +75,25 @@ public class SqlWriter implements Runnable {
         SiteParser siteParser = new SiteParser(site.getUrl(), siteTable, copyLinks, pageRepository, lemmaRepository
                 , searchIndexRepository, frequencyOfLemmas, indexSitesService, jsoupConnection);
         pageSet.addAll(new ForkJoinPool().invoke(siteParser));
-        pageRepository.saveAll(pageSet);
-        ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository
-                , frequencyOfLemmas);
-        try {
-            siteParser.document(site.getUrl()).connection().response().statusCode();
-        } catch (Exception e) {
-            error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();
+        if (!indexSitesService.isInterruptIt()) {
+            pageRepository.saveAll(pageSet);
+            ContentHandling.writeLemmasAndSearchIndexIntoSql(pageSet, siteTable, lemmaRepository, searchIndexRepository
+                    , frequencyOfLemmas);
+            try {
+                siteParser.document(site.getUrl()).connection().response().statusCode();
+            } catch (Exception e) {
+                error = "Произошла ошибка. Причина:" + "\n" + e.getMessage();
+            }
+            Site before = siteRepository.findByUrl(site.getUrl());
+            Site after = new Site(error != null
+                    ? SiteStatus.FAILED
+                    : SiteStatus.INDEXED
+                    , LocalDateTime.now()
+                    , error
+                    , before.getUrl()
+                    , before.getName());
+            after.setId(before.getId());
+            siteRepository.save(after);
         }
-        indexSitesService.interruptThread();
-        Site before = siteRepository.findByUrl(site.getUrl());
-        Site after = new Site(error != null
-                ? SiteStatus.FAILED
-                : SiteStatus.INDEXED
-                , LocalDateTime.now()
-                , error
-                , before.getUrl()
-                , before.getName());
-        after.setId(before.getId());
-        siteRepository.save(after);
     }
 }

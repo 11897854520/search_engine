@@ -56,10 +56,10 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     private void indexSingleSite(String url) {
         threadsAreRunning = true;
         sitesContainsUrl = false;
+        interruptIt = false;
         sites.getSites().forEach(site -> {
             if (site.getUrl().equals(url)) {
                 sitesContainsUrl = true;
-                interruptIt = false;
                 new Thread(new SqlWriter(site, siteRepository, pageRepository
                         , lemmaRepository, searchIndexRepository, jsoupConnection)).start();
             }

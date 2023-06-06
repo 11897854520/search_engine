@@ -94,6 +94,8 @@ public class ContentHandling {
                     } else if (frequencyOfLemmas.containsKey(s) && lemmaMap.containsKey(s)) {
                         lemma = lemmaMap.get(s);
                         lemma.setFrequency(lemma.getFrequency() + 1);
+                        frequencyOfLemmas.put(s, lemma.getFrequency());
+                        lemmaMap.put(s, lemma);
                     }
                     ranks.put(s, integer);
                 });

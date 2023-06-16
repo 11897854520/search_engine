@@ -20,15 +20,14 @@ public class Snippet {
 
     public static String getSnippet(String content, Set<String> lemmas) {
         AtomicReference<String> result = new AtomicReference<>("");
-        String[] words = content.toLowerCase(Locale.ROOT)
-                .replaceAll("([^а-я\\s])", " ").trim().split(" ");
+        String[] words = content.trim().split(" ");
         List<String> forbiddenLemmas = new ArrayList<>();
-        createStringOfSnippet(words, luceneMorphology, lemmas, forbiddenLemmas, result);
+        createStringOfSnippet(words, lemmas, forbiddenLemmas, result);
         return result.get();
     }
 
-    private static void createStringOfSnippet(String[] words, LuceneMorphology luceneMorphology
-            , Set<String> lemmas, List<String> forbiddenLemmas, AtomicReference<String> result) {
+    private static void createStringOfSnippet(String[] words, Set<String> lemmas
+            , List<String> forbiddenLemmas, AtomicReference<String> result) {
         int count = 0;
         for (String word : words) {
             count++;

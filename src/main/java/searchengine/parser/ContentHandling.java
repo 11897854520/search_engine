@@ -22,15 +22,16 @@ public class ContentHandling {
 
     // Метод для очищения содержимого страниц от html-тегов.
     public static String cleanedPageContents(String html) {
-        return Jsoup.parse(html).text();
+        return Jsoup.parse(html).text()
+                .toLowerCase(Locale.ROOT).replace('\u000B', ' ')
+                .replaceAll("([^а-я\\s\\t])", " ");
     }
 
     // Метод для перевода слов содержимого сайта в устойчивую форму (лемму) и подсчета количества лемм
     // на каждой странице.
     public static Map<String, Integer> getAmountOfLemmas(String text) throws IOException {
         Map<String, Integer> lemmas = new HashMap<>();
-        String[] words = text.toLowerCase(Locale.ROOT)
-                .replaceAll("([^а-я\\s])", " ").trim().split(" ");
+        String[] words = text.trim().split(" ");
         LuceneMorphology luceneMorphology = new RussianLuceneMorphology();
         for (String word : words) {
             if (word.isEmpty()) {

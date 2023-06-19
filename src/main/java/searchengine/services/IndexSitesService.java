@@ -3,8 +3,8 @@ import org.springframework.http.ResponseEntity;
 import searchengine.dto.Response;
 
 public interface IndexSitesService {
-    ResponseEntity<Response> startIndexingSitesInController();
-    ResponseEntity<Response> stopIndexingInController();
-    ResponseEntity<Response> startIndexingSingleSiteInController(String url);
+    Response startIndexingSitesInController();
+    Response stopIndexingInController();
+    Response startIndexingSingleSiteInController(String url);
     boolean isInterruptIt();
 }

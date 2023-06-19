@@ -28,17 +28,17 @@ public class ApiController {
     }
 
     @GetMapping("/startIndexing")
-    public ResponseEntity<Response> startIndexing() {
+    public Response startIndexing() {
         return indexSitesService.startIndexingSitesInController();
     }
 
     @GetMapping("/stopIndexing")
-    public ResponseEntity<Response> stopIndexing() {
+    public Response stopIndexing() {
         return indexSitesService.stopIndexingInController();
     }
 
     @PostMapping(value = "/indexPage")
-    public ResponseEntity<Response> indexSinglePage(@RequestParam String url) {
+    public Response indexSinglePage(@RequestParam String url) {
         return indexSitesService.startIndexingSingleSiteInController(url);
     }
 

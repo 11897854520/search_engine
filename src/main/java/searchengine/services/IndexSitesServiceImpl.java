@@ -102,31 +102,31 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     }
 
     // Метод для вызова индексации всех сайтов из API-контроллера
-    public ResponseEntity<Response> startIndexingSitesInController() {
+    public Response startIndexingSitesInController() {
         String errorResponse = "Индексация уже запущена";
         if (!isInterrupted()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response(false, errorResponse));
+            return new Response(false, errorResponse);
         }
         indexAllSites();
-        return ResponseEntity.ok(new Response(true, null));
+        return new Response(true, null);
     }
 
     // Метод для остановки индексации в API-контроллере.
-    public ResponseEntity<Response> stopIndexingInController() {
+    public Response stopIndexingInController() {
         String errorResponse = "Индексация не запущена";
         if (isInterrupted()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response(false, errorResponse));
+            return new Response(false, errorResponse);
         }
         stopIndexing();
-        return ResponseEntity.ok(new Response(true, null));
+        return new Response(true, null);
     }
 
     // Метод для вызова индексации одного сайта в API-контроллере
-    public ResponseEntity<Response> startIndexingSingleSiteInController(String url) {
+    public Response startIndexingSingleSiteInController(String url) {
         String errorResponse = "Данная страница находится за пределами сайтов, " +
                 "указанных в конфигурационном файле";
         indexSingleSite(url);
-        return sitesContainsUrl ? ResponseEntity.ok(new Response(true, null))
-                : ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response(false, errorResponse));
+        return sitesContainsUrl ? new Response(true, null)
+                : new Response(false, errorResponse);
     }
 }

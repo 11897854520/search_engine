@@ -108,8 +108,8 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
                     writeInformationAboutLemmasIntoMap(mapOfInformation, lemmas, listOfRelevance, key, page, title
                             , absoluteRelevance);
                 });
-        float maxOfAbsoluteRelevance = listOfAbsoluteRelevance.stream()
-                .max(Comparator.naturalOrder()).get();
+        float maxOfAbsoluteRelevance = !listOfAbsoluteRelevance.isEmpty() ? listOfAbsoluteRelevance.stream()
+                .max(Comparator.naturalOrder()).get() : 0;
         listOfInformation.addAll(countRelativeRelevanceAndAddInformationAboutLemmasToList(mapOfInformation
                 , maxOfAbsoluteRelevance));
     }

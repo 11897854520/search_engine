@@ -2,8 +2,8 @@ package searchengine.repositories;
 
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
-import searchengine.model.Site;
-import searchengine.model.SiteStatus;
+import searchengine.entities.Site;
+import searchengine.entities.SiteStatus;
 
 @Repository
 public interface SiteRepository extends CrudRepository<Site, Integer> {

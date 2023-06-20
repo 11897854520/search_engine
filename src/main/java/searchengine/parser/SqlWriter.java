@@ -3,13 +3,13 @@ package searchengine.parser;
 import lombok.RequiredArgsConstructor;
 import searchengine.config.ConfigurationForJsoupConnection;
 import searchengine.config.SitesList;
-import searchengine.model.Page;
-import searchengine.model.Site;
+import searchengine.entities.Page;
+import searchengine.entities.Site;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SearchIndexRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.model.SiteStatus;
+import searchengine.entities.SiteStatus;
 import searchengine.services.IndexSitesService;
 import searchengine.services.IndexSitesServiceImpl;
 

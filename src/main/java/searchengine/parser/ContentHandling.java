@@ -3,17 +3,15 @@ package searchengine.parser;
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
-import org.apache.lucene.search.MultiCollectorManager;
 import org.jsoup.Jsoup;
-import searchengine.model.Lemma;
-import searchengine.model.Page;
-import searchengine.model.SearchIndex;
-import searchengine.model.Site;
+import searchengine.entities.Lemma;
+import searchengine.entities.Page;
+import searchengine.entities.SearchIndex;
+import searchengine.entities.Site;
 import searchengine.repositories.*;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 // Класс для обработки содержимого страниц.
 

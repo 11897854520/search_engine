@@ -9,9 +9,9 @@ import org.springframework.stereotype.Service;
 import searchengine.dto.InformationAboutLemmas;
 import searchengine.dto.InformationAboutSearching;
 import searchengine.dto.Response;
-import searchengine.model.Lemma;
-import searchengine.model.Page;
-import searchengine.model.SearchIndex;
+import searchengine.entities.Lemma;
+import searchengine.entities.Page;
+import searchengine.entities.SearchIndex;
 import searchengine.parser.ContentHandling;
 import searchengine.parser.Snippet;
 import searchengine.repositories.LemmaRepository;
@@ -89,7 +89,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
 
     // Создаем список с объектами, в которых содержится информация о наличии лемм из запроса
     // на каждой странице
-    private void recordInformationOfLemmasIntoMap(Map<Lemma, List<Page>> getListOfPages) {
+    private void recordInformationOfLemmasIntoList(Map<Lemma, List<Page>> getListOfPages) {
         listOfInformation.clear();
         Map<String, InformationAboutLemmas> mapOfInformation
                 = new TreeMap();
@@ -167,9 +167,9 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         long a = System.currentTimeMillis();
         if (offset == 0) {
             if (site != null) {
-                recordInformationOfLemmasIntoMap(getListOfPages(shortedListOfLemmas(listOfLemmas(query, site))));
+                recordInformationOfLemmasIntoList(getListOfPages(shortedListOfLemmas(listOfLemmas(query, site))));
             } else {
-                recordInformationOfLemmasIntoMap(getListOfPages(shortedListOfLemmas(listOfLemmas(query))));
+                recordInformationOfLemmasIntoList(getListOfPages(shortedListOfLemmas(listOfLemmas(query))));
             }
         }
         AtomicInteger count = new AtomicInteger();

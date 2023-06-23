@@ -29,7 +29,6 @@ public class IndexSitesServiceImpl implements IndexSitesService {
     private boolean sitesContainsUrl;
     private boolean threadsAreRunning;
 
-    // Метод для индексации или переиндексации всех сайтов из списка файла "Application.yaml"
     private void indexAllSites() {
         threadsAreRunning = true;
         interruptIt = false;
@@ -41,7 +40,6 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         }
     }
 
-    //Метод для удаления сайта из базы данных если его нет в файле конфигурации.
     private void deleteSiteFromDataBaseIfDoesNotExist() {
         siteRepository.findAll().forEach(s -> {
             if (!sites.getSites().stream().map(Site::getUrl).toList().contains(s.getUrl())) {
@@ -50,7 +48,6 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         });
     }
 
-    // Метод для осуществления индексации или переиндексации одного сайта из списка файла "Application.yaml"
     private void indexSingleSite(String url) {
         threadsAreRunning = true;
         sitesContainsUrl = false;
@@ -68,16 +65,14 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         }
     }
 
-    // Метод для остановки индексации.
     private void stopIndexing() {
         if (threadsAreRunning) {
             interruptIt = true;
             String error = "Произошла ошибка. Причина: индексация остановлена пользователем";
-            updateSite(error);
+            updateSiteStatus(error);
         }
     }
 
-    // Метод, который возвращает информацию прервана индексация или нет.
     private boolean isInterrupted() {
         if (threadsAreRunning) {
             return interruptIt;
@@ -85,13 +80,11 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         return true;
     }
 
-    /*Метод для изменения статуса сайта и строки lastError при остановке индексации либо при запуске после
- после остановки.*/
-    private void updateSite(String lastErrorAfter) {
-        siteRepository.findAllByStatusAndLastError(SiteStatus.INDEXING, null).forEach(site1 -> {
-            site1.setStatus(SiteStatus.FAILED);
-            site1.setLastError(lastErrorAfter);
-            siteRepository.save(site1);
+    private void updateSiteStatus(String lastErrorAfter) {
+        siteRepository.findAllByStatusAndLastError(SiteStatus.INDEXING, null).forEach(site -> {
+            site.setStatus(SiteStatus.FAILED);
+            site.setLastError(lastErrorAfter);
+            siteRepository.save(site);
         });
     }
 
@@ -99,8 +92,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         return interruptIt;
     }
 
-    // Метод для вызова индексации всех сайтов из API-контроллера
-    public Response startIndexingSitesInController() {
+    public Response startIndexingAllSites() {
         String errorResponse = "Индексация уже запущена";
         if (!isInterrupted()) {
             return new Response(false, errorResponse);
@@ -109,8 +101,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         return new Response(true, null);
     }
 
-    // Метод для остановки индексации в API-контроллере.
-    public Response stopIndexingInController() {
+    public Response stopIndexingAllSites() {
         String errorResponse = "Индексация не запущена";
         if (isInterrupted()) {
             return new Response(false, errorResponse);
@@ -119,8 +110,7 @@ public class IndexSitesServiceImpl implements IndexSitesService {
         return new Response(true, null);
     }
 
-    // Метод для вызова индексации одного сайта в API-контроллере
-    public Response startIndexingSingleSiteInController(String url) {
+    public Response startIndexingSingleSite(String url) {
         String errorResponse = "Данная страница находится за пределами сайтов, " +
                 "указанных в конфигурационном файле";
         indexSingleSite(url);

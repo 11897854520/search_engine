@@ -10,7 +10,6 @@ import java.util.List;
 @Repository
 public interface SearchIndexRepository extends CrudRepository<SearchIndex, Integer> {
     List<SearchIndex> findByLemmaId(int id);
-
     @Query(value = "SELECT lemma_rank FROM search_index WHERE lemma_id = :lemmaId AND page_id = :pageId"
             , nativeQuery = true)
     Float getRankByLemmaIdAndPageId(int lemmaId, int pageId);

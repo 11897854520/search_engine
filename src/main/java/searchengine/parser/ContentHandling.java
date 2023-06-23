@@ -13,20 +13,15 @@ import searchengine.repositories.*;
 import java.io.IOException;
 import java.util.*;
 
-// Класс для обработки содержимого страниц.
-
 @RequiredArgsConstructor
 public class ContentHandling {
 
-    // Метод для очищения содержимого страниц от html-тегов.
     public static String cleanedPageContents(String html) {
         return Jsoup.parse(html).text()
                 .toLowerCase(Locale.ROOT).replace('\u000B', ' ')
                 .replaceAll("([^а-я\\s\\t])", " ");
     }
 
-    // Метод для перевода слов содержимого сайта в устойчивую форму (лемму) и подсчета количества лемм
-    // на каждой странице.
     public static Map<String, Integer> getAmountOfLemmas(String text) throws IOException {
         Map<String, Integer> lemmas = new HashMap<>();
         String[] words = text.trim().split(" ");
@@ -49,7 +44,6 @@ public class ContentHandling {
         return lemmas;
     }
 
-    // Метод для определения соответствия слова указанному типу.
     protected static boolean unneededTypeOfWord(List<String> typeOfWord) {
         String[] types = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
         for (String type : types) {
@@ -58,7 +52,6 @@ public class ContentHandling {
         return false;
     }
 
-    //Метод для записи лемм и поисковых индексов в базу данных.
     public static synchronized void writeLemmasAndSearchIndexIntoSql(Set<Page> pageSet, Site site
             , LemmaRepository lemmaRepository, SearchIndexRepository searchIndexRepository
             , Map<String, Integer> frequencyOfLemmas) {

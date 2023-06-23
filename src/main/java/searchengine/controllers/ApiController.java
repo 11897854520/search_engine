@@ -29,22 +29,22 @@ public class ApiController {
 
     @GetMapping("/startIndexing")
     public Response startIndexing() {
-        return indexSitesService.startIndexingSitesInController();
+        return indexSitesService.startIndexingAllSites();
     }
 
     @GetMapping("/stopIndexing")
     public Response stopIndexing() {
-        return indexSitesService.stopIndexingInController();
+        return indexSitesService.stopIndexingAllSites();
     }
 
     @PostMapping(value = "/indexPage")
     public Response indexSinglePage(@RequestParam String url) {
-        return indexSitesService.startIndexingSingleSiteInController(url);
+        return indexSitesService.startIndexingSingleSite(url);
     }
 
     @GetMapping(value = "/search")
     public ResponseEntity<?> searchLemma(@RequestParam String query, String site, int offset, int limit)
             throws IOException {
-        return searchLemmasService.startSearchingLemmasInController(query, site, offset, limit);
+        return searchLemmasService.startSearchingLemmas(query, site, offset, limit);
     }
 }

@@ -17,7 +17,6 @@ import java.util.*;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// Класс для рекурсивного обхода сайтов при помощи forkJoin.
 @RequiredArgsConstructor
 public class SiteParser extends RecursiveTask<Set<Page>> {
     private final String url;

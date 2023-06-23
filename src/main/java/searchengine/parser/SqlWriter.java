@@ -37,9 +37,9 @@ public class SqlWriter implements Runnable {
     public void run() {
         try {
             if (siteRepository.findByUrl(site.getUrl()) != null) {
-                rewriteAllIntoSql();
+                rewriteAllIntoDataBase();
             } else {
-                writeAllIntoSql();
+                writeAllIntoDataBase();
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -48,7 +48,7 @@ public class SqlWriter implements Runnable {
     }
 
     // Метод для записи данных в sql, если таблицы не заполнены.
-    private synchronized void writeAllIntoSql() {
+    private synchronized void writeAllIntoDataBase() {
         siteTable = new Site(SiteStatus.INDEXING
                 , LocalDateTime.now()
                 , null, site.getUrl()
@@ -58,7 +58,7 @@ public class SqlWriter implements Runnable {
     }
 
     // Метод для записи данных в sql, если таблицы уже заполнены.
-    private synchronized void rewriteAllIntoSql() {
+    private synchronized void rewriteAllIntoDataBase() {
         Site old = siteRepository.findByUrl(site.getUrl());
         siteTable = new Site(SiteStatus.INDEXING
                 , LocalDateTime.now()

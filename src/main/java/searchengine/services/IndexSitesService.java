@@ -1,10 +1,9 @@
 package searchengine.services;
-import org.springframework.http.ResponseEntity;
 import searchengine.dto.Response;
 
 public interface IndexSitesService {
-    Response startIndexingSitesInController();
-    Response stopIndexingInController();
-    Response startIndexingSingleSiteInController(String url);
+    Response startIndexingAllSites();
+    Response stopIndexingAllSites();
+    Response startIndexingSingleSite(String url);
     boolean isInterruptIt();
 }

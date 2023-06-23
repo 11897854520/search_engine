@@ -13,7 +13,6 @@ import searchengine.repositories.SiteRepository;
 import java.util.ArrayList;
 import java.util.List;
 
-// Класс для подсчета статистики.
 @Service
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {

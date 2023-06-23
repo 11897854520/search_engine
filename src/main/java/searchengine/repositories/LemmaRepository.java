@@ -10,10 +10,8 @@ import java.util.List;
 @Repository
 public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
     List<Lemma> findByLemma(String lemma);
-
     @Query(value = "SELECT MAX(frequency) FROM lemma WHERE site_id = :siteId", nativeQuery = true)
     Integer getMaxFrequencyBySiteId(int siteId);
-
     Lemma findBySiteIdAndLemma(int siteId, String lemma);
 
 }

@@ -91,10 +91,8 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         List<Float> listOfAbsoluteRelevance = new ArrayList<>();
         Set<String> lemmas = getListOfPages.keySet().stream().map(Lemma::getLemma).collect(Collectors.toSet());
         getListOfPages.values().stream().flatMap(Collection::parallelStream)
-                .forEach(page -> {
-                   compileInformationAboutLemmas(page, getListOfPages, listOfAbsoluteRelevance, mapOfInformation
-                   , lemmas);
-                });
+                .forEach(page -> compileInformationAboutLemmas(page, getListOfPages, listOfAbsoluteRelevance
+                        , mapOfInformation, lemmas));
         float maxOfAbsoluteRelevance = !listOfAbsoluteRelevance.isEmpty() ? listOfAbsoluteRelevance.stream()
                 .max(Comparator.naturalOrder()).get() : 0;
         listOfInformation.addAll(createListOfInformationAboutLemmas(mapOfInformation
@@ -106,7 +104,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         String title = Jsoup.parse(page.getContent()).title();
         List<Float> listOfRelevance = new ArrayList<>();
         String key = page.getPath() + title + page.getSite().getName();
-        writeRanksIntoLists(getListOfPages.keySet()
+        writeRanksIntoList(getListOfPages.keySet()
                 , page, listOfRelevance);
         float absoluteRelevance = (float) listOfRelevance.stream()
                 .mapToDouble(Float::floatValue).sum();
@@ -152,7 +150,7 @@ public class SearchLemmasServiceImpl implements SearchLemmasService {
         }
     }
 
-    private void writeRanksIntoLists(Set<Lemma> listOfLemmas
+    private void writeRanksIntoList(Set<Lemma> listOfLemmas
             , Page page, List<Float> listOfRelevance) {
         listOfLemmas.forEach(lemma -> {
             if (searchIndexRepository.getRankByLemmaIdAndPageId(lemma.getId(), page.getId()) != null) {
